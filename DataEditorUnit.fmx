@@ -1,0 +1,20 @@
+object MainForm: TMainForm
+  Left = 0
+  Top = 0
+  Caption = 'MainForm'
+  ClientHeight = 426
+  ClientWidth = 462
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
+  OnClose = FormClose
+  OnDestroy = FormDestroy
+  DesignerMasterStyle = 0
+  object Button1: TButton
+    Position.X = 18.000000000000000000
+    Position.Y = 390.000000000000000000
+    TabOrder = 0
+    Text = 'Button1'
+  end
+end

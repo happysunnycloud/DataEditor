@@ -1,0 +1,98 @@
+object DataForm: TDataForm
+  Left = 0
+  Top = 0
+  Caption = 'Form1'
+  ClientHeight = 722
+  ClientWidth = 1414
+  FormFactor.Width = 320
+  FormFactor.Height = 480
+  FormFactor.Devices = [Desktop]
+  OnDestroy = FormDestroy
+  DesignerMasterStyle = 0
+  object DBFieldsLayout: TLayout
+    Align = Right
+    Position.X = 1009.000000000000000000
+    Size.Width = 405.000000000000000000
+    Size.Height = 722.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object DBFieldsScrollBox: TScrollBox
+      Align = Client
+      Margins.Left = 10.000000000000000000
+      Size.Width = 395.000000000000000000
+      Size.Height = 722.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 0
+      Viewport.Width = 395.000000000000000000
+      Viewport.Height = 722.000000000000000000
+      object Panel1: TPanel
+        Align = Top
+        Size.Width = 395.000000000000000000
+        Size.Height = 49.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        object Label1: TLabel
+          Align = Top
+          StyledSettings = [Family, Size, FontColor]
+          Margins.Left = 10.000000000000000000
+          Margins.Top = 10.000000000000000000
+          Position.X = 10.000000000000000000
+          Position.Y = 10.000000000000000000
+          Size.Width = 385.000000000000000000
+          Size.Height = 17.000000000000000000
+          Size.PlatformDefault = False
+          TextSettings.Font.StyleExt = {00070000000000000004000000}
+          Text = 'Fields'
+          TabOrder = 0
+        end
+      end
+    end
+  end
+  object LeftLayout: TLayout
+    Align = Left
+    Anchors = [akLeft, akTop, akRight, akBottom]
+    Size.Width = 1004.000000000000000000
+    Size.Height = 722.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 2
+    object SQLLayout: TLayout
+      Align = Top
+      Size.Width = 1004.000000000000000000
+      Size.Height = 371.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 3
+      object DDLMemo: TMemo
+        Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
+        DataDetectorTypes = []
+        Align = Contents
+        Size.Width = 1004.000000000000000000
+        Size.Height = 371.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        Viewport.Width = 1000.000000000000000000
+        Viewport.Height = 367.000000000000000000
+      end
+    end
+    object DataGridLayout: TLayout
+      Align = Bottom
+      Anchors = [akLeft, akTop, akRight, akBottom]
+      Position.Y = 375.000000000000000000
+      Size.Width = 1004.000000000000000000
+      Size.Height = 347.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 2
+      object DataStringGrid: TStringGrid
+        Align = Client
+        CanFocus = True
+        ClipChildren = True
+        Size.Width = 1004.000000000000000000
+        Size.Height = 347.000000000000000000
+        Size.PlatformDefault = False
+        TabOrder = 0
+        OnCellClick = DataStringGridCellClick
+        Viewport.Width = 1000.000000000000000000
+        Viewport.Height = 322.000000000000000000
+      end
+    end
+  end
+end
