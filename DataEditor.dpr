@@ -6,13 +6,15 @@ uses
   DataEditorUnit in 'DataEditorUnit.pas' {MainForm},
   DataFormUnit in 'DataFormUnit.pas' {DataForm},
   DBAccessUnit in 'DBAccessUnit.pas',
-  SQLTemplatesUnit in 'C:\Desktop\DevelopmentsCollection\SQL\SQLTemplatesUnit.pas',
-  ParamsExtUnit in 'C:\Desktop\DevelopmentsCollection\ParamsExtUnit.pas',
-  FileToolsUnit in 'C:\Desktop\DevelopmentsCollection\FileToolsUnit.pas',
+  SQLTemplatesUnit in '..\DevelopmentsCollection\SQL\SQLTemplatesUnit.pas',
+  ParamsExtUnit in '..\DevelopmentsCollection\ParamsExtUnit.pas',
+  FileToolsUnit in '..\DevelopmentsCollection\FileToolsUnit.pas',
   DBExceptionContainerUnit in 'DBExceptionContainerUnit.pas',
-  DBToolsUnit in 'C:\Desktop\DevelopmentsCollection\SQLite\DBToolsUnit.pas',
+  DBToolsUnit in '..\DevelopmentsCollection\SQLite\DBToolsUnit.pas',
   DBFieldUnit in 'DBFieldUnit.pas',
-  DBFieldControlUnit in 'DBFieldControlUnit.pas';
+  DBFieldControlUnit in 'DBFieldControlUnit.pas',
+  ObjectRegistryUnit in '..\DevelopmentsCollection\ObjectRegistryUnit.pas',
+  DebugUnit in '..\DevelopmentsCollection\DebugUnit.pas';
 
 {$R *.res}
 

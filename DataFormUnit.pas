@@ -21,16 +21,18 @@ type
     Panel1: TPanel;
     Label1: TLabel;
     LeftLayout: TLayout;
-    procedure FormDestroy(Sender: TObject);
     procedure DataStringGridCellClick(const Column: TColumn;
       const Row: Integer);
+    procedure FormClose(Sender: TObject; var Action: TCloseAction);
+    procedure FormDestroy(Sender: TObject);
   private
     { Private declarations }
     FDBRowList: TDBRowList;
+
+    procedure ClearContent;
   public
     { Public declarations }
-
-    constructor Create(AOwner: TComponent; const ATableName: String); reintroduce;
+    procedure SetTableName(const ATableName: String);
   end;
 
 var
@@ -48,7 +50,35 @@ uses
 
 { TDataForm }
 
-constructor TDataForm.Create(AOwner: TComponent; const ATableName: String);
+procedure TDataForm.ClearContent;
+var
+  i: Integer;
+  Control: TControl;
+begin
+  DataStringGrid.ClearColumns;
+
+  DBFieldsScrollBox.BeginUpdate;
+  DBFieldsScrollBox.ShowScrollBars := false;
+  try
+    i := DBFieldsScrollBox.Content.ControlsCount;
+    while i > 0 do
+    begin
+      Dec(i);
+
+      Control := DBFieldsScrollBox.Content.Controls[i];
+      FreeAndNil(Control);
+    end;
+
+    DBFieldsScrollBox.Content.Controls.Clear;
+  finally
+    DBFieldsScrollBox.EndUpdate;
+    DBFieldsScrollBox.RecalcSize;
+    DBFieldsScrollBox.ShowScrollBars := true;
+  end;
+end;
+
+procedure TDataForm.SetTableName(const ATableName: String);
+
   procedure _AddCol(const ADataStringGrid: TStringGrid; const AHeader: String);
   var
     Col: TColumn;
@@ -84,7 +114,10 @@ var
   DBRow: TDBRow;
   Col, Row: Integer;
 begin
-  inherited Create(AOwner);
+  ClearContent;
+
+  if Assigned(FDBRowList) then
+    FreeAndNil(FDBRowList);
 
   Caption := ATableName;
 
@@ -105,18 +138,34 @@ begin
     FreeAndNil(ParamsIn);
   end;
 
-//  DataStringGrid.RowCount := 1;
+  DBFieldsScrollBox.BeginUpdate;
+  try
+    FDBRowList := TDBRowList.Create(DDLString);
+    for DBField in FDBRowList.DDLRowPattern do
+    begin
+      DBFieldControl := TDBFieldControl.Create(DBFieldsScrollBox, DBField);
+      DBFieldControl.Align := TAlignLayout.Bottom;
 
-  FDBRowList := TDBRowList.Create(DDLString);
-  for DBField in FDBRowList.DDLRowPattern do
-  begin
-    DBFieldControl := TDBFieldControl.Create(DBFieldsScrollBox, DBField);
-    DBFieldControl.Align := TAlignLayout.Top;
+      _AddCol(DataStringGrid, DBField.FieldName);
+    end;
+  finally
+    TDBFieldControl.DBFieldControlRegistry.Enumerator(
+      procedure (const AObject: TDBFieldControl)
+      begin
+        AObject.Align := TAlignLayout.Top;
+      end
+    );
+    DBFieldsScrollBox.EndUpdate;
+  end;
 
-    _AddCol(DataStringGrid, DBField.FieldName);
+  DBFieldsScrollBox.BeginUpdate;
+  try
+  finally
+    DBFieldsScrollBox.EndUpdate;
   end;
 
   // -----
+
   ParamsIn := TParamsExt.Create;
   ParamsOut := TParamsExt.Create;
   try
@@ -152,15 +201,27 @@ procedure TDataForm.DataStringGridCellClick(const Column: TColumn;
   const Row: Integer);
 var
   DBRow: TDBRow;
+  DBField: TDBField;
+  DBFieldControl: TDBFieldControl;
 begin
   DBRow := FDBRowList[Row];
-  DDLMemo.Text := DBRow[Column.Index].FieldValue;
 
+  for DBField in DBRow do
+  begin
+    DBFieldControl := TDBFieldControl.FindControlByField(DBField);
+    DBFieldControl.Memo.Text := DBField.FieldValue;
+  end;
+end;
+
+procedure TDataForm.FormClose(Sender: TObject; var Action: TCloseAction);
+begin
+  Action := TCloseAction.caFree;
 end;
 
 procedure TDataForm.FormDestroy(Sender: TObject);
 begin
-  FreeAndNil(FDBRowList);
+  if Assigned(FDBRowList) then
+    FreeAndNil(FDBRowList);
 end;
 
 end.

@@ -7,6 +7,7 @@ object DataForm: TDataForm
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
+  OnClose = FormClose
   OnDestroy = FormDestroy
   DesignerMasterStyle = 0
   object DBFieldsLayout: TLayout
@@ -19,32 +20,34 @@ object DataForm: TDataForm
     object DBFieldsScrollBox: TScrollBox
       Align = Client
       Margins.Left = 10.000000000000000000
-      Size.Width = 395.000000000000000000
-      Size.Height = 722.000000000000000000
+      Margins.Right = 10.000000000000000000
+      Size.Width = 385.000000000000000000
+      Size.Height = 673.000000000000000000
+      Size.PlatformDefault = False
+      TabOrder = 1
+      ShowSizeGrip = True
+      Viewport.Width = 385.000000000000000000
+      Viewport.Height = 673.000000000000000000
+    end
+    object Panel1: TPanel
+      Align = Top
+      Size.Width = 405.000000000000000000
+      Size.Height = 49.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 0
-      Viewport.Width = 395.000000000000000000
-      Viewport.Height = 722.000000000000000000
-      object Panel1: TPanel
+      object Label1: TLabel
         Align = Top
+        StyledSettings = [Family, Size, FontColor]
+        Margins.Left = 10.000000000000000000
+        Margins.Top = 10.000000000000000000
+        Position.X = 10.000000000000000000
+        Position.Y = 10.000000000000000000
         Size.Width = 395.000000000000000000
-        Size.Height = 49.000000000000000000
+        Size.Height = 17.000000000000000000
         Size.PlatformDefault = False
+        TextSettings.Font.StyleExt = {00070000000000000004000000}
+        Text = 'Fields'
         TabOrder = 0
-        object Label1: TLabel
-          Align = Top
-          StyledSettings = [Family, Size, FontColor]
-          Margins.Left = 10.000000000000000000
-          Margins.Top = 10.000000000000000000
-          Position.X = 10.000000000000000000
-          Position.Y = 10.000000000000000000
-          Size.Width = 385.000000000000000000
-          Size.Height = 17.000000000000000000
-          Size.PlatformDefault = False
-          TextSettings.Font.StyleExt = {00070000000000000004000000}
-          Text = 'Fields'
-          TabOrder = 0
-        end
       end
     end
   end

@@ -5,7 +5,9 @@ interface
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
-  FMX.Controls.Presentation, FMX.StdCtrls;
+  FMX.Controls.Presentation, FMX.StdCtrls
+  , DataFormUnit
+  ;
 
 const
 //  DB_PATH = '..\..\DataBase\Purgaroty.db';
@@ -18,8 +20,10 @@ type
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormDestroy(Sender: TObject);
+    procedure Button1Click(Sender: TObject);
   private
     { Private declarations }
+    DataForm: TDataForm;
   public
     { Public declarations }
   end;
@@ -33,8 +37,12 @@ implementation
 
 uses
     DBAccessUnit
-  , DataFormUnit
   ;
+
+procedure TMainForm.Button1Click(Sender: TObject);
+begin
+  DataForm.SetTableName('types');
+end;
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
@@ -42,14 +50,15 @@ begin
 end;
 
 procedure TMainForm.FormCreate(Sender: TObject);
-var
-  DataForm: TDataForm;
+
 begin
   ReportMemoryLeaksOnShutdown := true;
 
   TDBAccess.Init(DB_PATH, SQL_TEMPLATES_PATH);
 
-  DataForm := TDataForm.Create(Self, 'contents');
+  DataForm := TDataForm.Create(Self);
+//  DataForm.SetTableName('types');
+  DataForm.SetTableName('contents');
   DataForm.Show;
 
   Self.SendToBack;
