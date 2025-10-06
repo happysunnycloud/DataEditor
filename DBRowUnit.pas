@@ -1,4 +1,4 @@
-unit DBFieldUnit;
+unit DBRowUnit;
 
 interface
 
@@ -14,18 +14,30 @@ const
 type
   TDBField = class
   strict private
+    FTableName: String;
     FFieldName: String;
     FFieldType: String;
     FFieldValue: String;
+    FIsAutoIncrement: Boolean;
+    FIsForeignKey: Boolean;
+    FTableReference: String;
+    FFieldReference: String;
   public
     constructor Create;
 
+    property TableName: String read FTableName write FTableName;
     property FieldName: String read FFieldName write FFieldName;
     property FieldType: String read FFieldType write FFieldType;
     property FieldValue: String read FFieldValue write FFieldValue;
+    property IsAutoIncrement: Boolean read FIsAutoIncrement write FIsAutoIncrement;
+    property IsForeignKey: Boolean read FIsForeignKey write FIsForeignKey;
+    property TableReference: String read FTableReference write FTableReference;
+    property FieldReference: String read FFieldReference write FFieldReference;
 
     class function ClearString(const ADirtString: String): String;
-    class function CreateDBField(const AFieldString: String): TDBField;
+    class function CreateDBField(
+      const ATableName: String;
+      const AFieldString: String): TDBField;
   end;
 
   // Переименовать в TDBRow
@@ -34,7 +46,7 @@ type
   strict private
     function ContainsExcludingDDLString(
       const ADDLString: String): Boolean;
-    procedure GetDDLStringList(const ADDLString: String);
+    procedure ParseDDLString(const ADDLString: String);
 
     function GetField(const AName: String): TDBField;
   public
@@ -50,6 +62,8 @@ type
     FDDLRowPattern: TDBRow;
 
     function GetRow(const AIndex: Integer): TDBRow;
+  protected
+
   public
     constructor Create(const ADDLTable: String = '');
     destructor Destroy; override;
@@ -58,6 +72,9 @@ type
     property DDLRowPattern: TDBRow read FDDLRowPattern;
 
     procedure Add(const ADBRow: TDBRow);
+    procedure SetDDLRowPattern(const ADDLString: String);
+
+      procedure Clear;
   end;
 
 implementation
@@ -70,9 +87,14 @@ uses
 
 constructor TDBField.Create;
 begin
+  FTableName := '';
   FFieldName := '';
   FFieldType := '';
   FFieldValue := '';
+  FIsAutoIncrement := false;
+  FIsForeignKey := false;
+  FTableReference := '';
+  FFieldReference := '';
 end;
 
 class function TDBField.ClearString(const ADirtString: String): String;
@@ -87,7 +109,9 @@ begin
   end;
 end;
 
-class function TDBField.CreateDBField(const AFieldString: String): TDBField;
+class function TDBField.CreateDBField(
+  const ATableName: String;
+  const AFieldString: String): TDBField;
 var
   Splitted: TArray<String>;
   SplittedStrings: TStringList;
@@ -119,8 +143,10 @@ begin
     FieldType := ClearString(SplittedStrings[1]);
 
     Result := TDBField.Create;
+    Result.TableName := ATableName;
     Result.FieldName := FieldName;
     Result.FieldType := FieldType;
+    Result.IsAutoIncrement := AFieldString.Contains('autoincrement')
   finally
     FreeAndNil(SplittedStrings);
   end;
@@ -147,7 +173,32 @@ begin
   end;
 end;
 
-procedure TDBRow.GetDDLStringList(const ADDLString: String);
+procedure TDBRow.ParseDDLString(const ADDLString: String);
+
+  procedure _ParseReference(
+    const AReferenceString: String;
+    var ATableReference: String;
+    var AFieldReference: String);
+  var
+    SplittedArray: TArray<String>;
+    FieldReference: String;
+  begin
+    SplittedArray := AReferenceString.Split([' ']);
+    ATableReference := Trim(SplittedArray[1]);
+    FieldReference := Trim(SplittedArray[2]);
+    FieldReference := TDBField.ClearString(FieldReference);
+    AFieldReference := FieldReference;
+  end;
+
+  function _PareseTableName(const ASource: String): String;
+  var
+    SplittedArray: TArray<String>;
+  begin
+    SplittedArray := ASource.Split([' ']);
+
+    Result := SplittedArray[2];
+  end;
+
 var
   SplittedArray: TArray<String>;
   DDLString: String;
@@ -155,9 +206,17 @@ var
   TrimedString: String;
   DBField: TDBField;
   DoBreak: Boolean;
+  i: Integer;
+  ForeignKey: String;
+  TableReference: String;
+  FieldReference: String;
+  Reference: String;
+  ForeignKeyField: TDBField;
+  TableName: String;
 begin
   DDLString := ADDLString;
   SplittedArray := DDLString.Split([#10]);
+  TableName := _PareseTableName(SplittedArray[0]);
 
   DoBreak := false;
   for DDLString in SplittedArray do
@@ -168,7 +227,7 @@ begin
       TrimedString := Trim(ParsingString);
       if TrimedString.Length > 0 then
       begin
-        DBField := TDBField.CreateDBField(TrimedString);
+        DBField := TDBField.CreateDBField(TableName, TrimedString);
         Add(DBField);
       end;
     end
@@ -181,6 +240,30 @@ begin
       else
         Break;
     end;
+  end;
+
+  i := 0;
+  while i < Length(SplittedArray) do
+  begin
+    ParsingString := String.LowerCase(SplittedArray[i]);
+    if ParsingString.Contains('foreign key') then
+    begin
+      Inc(i);
+
+      ForeignKey := Trim(SplittedArray[i]);
+      ForeignKeyField := Field[ForeignKey];
+      ForeignKeyField.IsForeignKey := true;
+
+      Inc(i, 2);
+
+      Reference := Trim(SplittedArray[i]);
+      _ParseReference(Reference, TableReference, FieldReference);
+
+      ForeignKeyField.TableReference := TableReference;
+      ForeignKeyField.FieldReference := FieldReference;
+    end;
+
+    Inc(i);
   end;
 end;
 
@@ -205,7 +288,7 @@ begin
   if ADDLString.IsEmpty then
     Exit;
 
-  GetDDLStringList(ADDLString);
+  ParseDDLString(ADDLString);
 end;
 
 destructor TDBRow.Destroy;
@@ -225,7 +308,31 @@ constructor TDBRowList.Create(const ADDLTable: String = '');
 begin
   inherited Create;
 
-  FDDLRowPattern := TDBRow.Create(ADDLTable);
+  FDDLRowPattern := nil;
+
+  SetDDLRowPattern(ADDLTable);
+end;
+
+procedure TDBRowList.SetDDLRowPattern(const ADDLString: String);
+begin
+  if Assigned(FDDLRowPattern) then
+    FreeAndNil(FDDLRowPattern);
+
+  FDDLRowPattern := TDBRow.Create(ADDLString);
+end;
+
+procedure TDBRowList.Clear;
+var
+  i: Integer;
+begin
+  i := Count;
+  while i > 0 do
+  begin
+    Dec(i);
+
+    Items[i].Free;
+    Delete(i);
+  end;
 end;
 
 function TDBRowList.GetRow(const AIndex: Integer): TDBRow;

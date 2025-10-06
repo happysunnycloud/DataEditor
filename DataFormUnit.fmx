@@ -3,16 +3,17 @@ object DataForm: TDataForm
   Top = 0
   Caption = 'Form1'
   ClientHeight = 722
-  ClientWidth = 1414
+  ClientWidth = 1219
   FormFactor.Width = 320
   FormFactor.Height = 480
   FormFactor.Devices = [Desktop]
+  OnCreate = FormCreate
   OnClose = FormClose
   OnDestroy = FormDestroy
   DesignerMasterStyle = 0
   object DBFieldsLayout: TLayout
     Align = Right
-    Position.X = 1009.000000000000000000
+    Position.X = 814.000000000000000000
     Size.Width = 405.000000000000000000
     Size.Height = 722.000000000000000000
     Size.PlatformDefault = False
@@ -20,16 +21,18 @@ object DataForm: TDataForm
     object DBFieldsScrollBox: TScrollBox
       Align = Client
       Margins.Left = 10.000000000000000000
+      Margins.Top = 10.000000000000000000
       Margins.Right = 10.000000000000000000
+      Margins.Bottom = 10.000000000000000000
       Size.Width = 385.000000000000000000
-      Size.Height = 673.000000000000000000
+      Size.Height = 653.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 1
       ShowSizeGrip = True
       Viewport.Width = 385.000000000000000000
-      Viewport.Height = 673.000000000000000000
+      Viewport.Height = 653.000000000000000000
     end
-    object Panel1: TPanel
+    object FieldsPanel: TPanel
       Align = Top
       Size.Width = 405.000000000000000000
       Size.Height = 49.000000000000000000
@@ -54,13 +57,13 @@ object DataForm: TDataForm
   object LeftLayout: TLayout
     Align = Left
     Anchors = [akLeft, akTop, akRight, akBottom]
-    Size.Width = 1004.000000000000000000
+    Size.Width = 805.000000000000000000
     Size.Height = 722.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 2
     object SQLLayout: TLayout
       Align = Top
-      Size.Width = 1004.000000000000000000
+      Size.Width = 805.000000000000000000
       Size.Height = 371.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 3
@@ -68,19 +71,19 @@ object DataForm: TDataForm
         Touch.InteractiveGestures = [Pan, LongTap, DoubleTap]
         DataDetectorTypes = []
         Align = Contents
-        Size.Width = 1004.000000000000000000
+        Size.Width = 805.000000000000000000
         Size.Height = 371.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 0
-        Viewport.Width = 1000.000000000000000000
-        Viewport.Height = 367.000000000000000000
+        Viewport.Width = 805.000000000000000000
+        Viewport.Height = 371.000000000000000000
       end
     end
     object DataGridLayout: TLayout
       Align = Bottom
       Anchors = [akLeft, akTop, akRight, akBottom]
       Position.Y = 375.000000000000000000
-      Size.Width = 1004.000000000000000000
+      Size.Width = 805.000000000000000000
       Size.Height = 347.000000000000000000
       Size.PlatformDefault = False
       TabOrder = 2
@@ -88,13 +91,13 @@ object DataForm: TDataForm
         Align = Client
         CanFocus = True
         ClipChildren = True
-        Size.Width = 1004.000000000000000000
+        Size.Width = 805.000000000000000000
         Size.Height = 347.000000000000000000
         Size.PlatformDefault = False
         TabOrder = 0
         OnCellClick = DataStringGridCellClick
-        Viewport.Width = 1000.000000000000000000
-        Viewport.Height = 322.000000000000000000
+        Viewport.Width = 805.000000000000000000
+        Viewport.Height = 347.000000000000000000
       end
     end
   end

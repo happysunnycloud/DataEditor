@@ -11,10 +11,11 @@ uses
   FileToolsUnit in '..\DevelopmentsCollection\FileToolsUnit.pas',
   DBExceptionContainerUnit in 'DBExceptionContainerUnit.pas',
   DBToolsUnit in '..\DevelopmentsCollection\SQLite\DBToolsUnit.pas',
-  DBFieldUnit in 'DBFieldUnit.pas',
   DBFieldControlUnit in 'DBFieldControlUnit.pas',
   ObjectRegistryUnit in '..\DevelopmentsCollection\ObjectRegistryUnit.pas',
-  DebugUnit in '..\DevelopmentsCollection\DebugUnit.pas';
+  DebugUnit in '..\DevelopmentsCollection\DebugUnit.pas',
+  DBRowUnit in 'DBRowUnit.pas',
+  DataConnectorUnit in 'DataConnectorUnit.pas';
 
 {$R *.res}
 
