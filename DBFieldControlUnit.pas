@@ -30,8 +30,6 @@ type
     FDBField: TDBField;
     FLabel: TLabel;
     FMemo: TMemo;
-  private
-    property DBField: TDBField read FDBField;
   public
     constructor Create(
       const ARegistryRef: TDBFieldControlRegistry;
@@ -39,6 +37,7 @@ type
       const AFDBField: TDBField); reintroduce;
     destructor Destroy; override;
 
+    property DBField: TDBField read FDBField;
     property Memo: TMemo read FMemo write FMemo;
   end;
 
@@ -58,6 +57,8 @@ constructor TDBFieldControl.Create(
   const AFDBField: TDBField);
 var
   ForeignKey: String;
+  NotNullAttribute: String;
+  UniqueAttribute: String;
 begin
   if not Assigned(ARegistryRef) then
     raise Exception.Create('TDBFieldControl.Create -> ARegistryRef is nil');
@@ -81,10 +82,27 @@ begin
   FLabel.Height := 30;
   FLabel.Width := 200;
   ForeignKey := '';
-  if FDBField.ISForeignKey then
+  if FDBField.IsForeignKey then
     ForeignKey := Format(' is foreign key ref: %s (%s)',
       [FDBField.TableReference, FDBField.FieldReference]);
-  FLabel.Text := FDBField.FieldName + ' ' + FDBField.FieldType + ForeignKey;
+
+  NotNullAttribute := '';
+  if FDBField.IsNotNull then
+    NotNullAttribute := ' (not null)';
+
+  UniqueAttribute := '';
+  if FDBField.IsUnique then
+    UniqueAttribute := ' (unique)';
+
+  FLabel.Text :=
+    Concat(
+      FDBField.FieldName,
+      ' ',
+      FDBField.FieldType,
+      UniqueAttribute,
+      NotNullAttribute,
+      ForeignKey);
+
   FLabel.Align := TAlignLayout.Top;
 
   FMemo := TMemo.Create(Self);

@@ -13,17 +13,23 @@ type
     FFieldName: String;
     FTableReference: String;
     FFieldReference: String;
+    FHasUpdateCascade: Boolean;
+    FHasDeleteCascade: Boolean;
   public
     constructor Create(
       const ATableName: String;
       const AFieldName: String;
       const ATableReference: String;
-      const AFieldReference: String);
+      const AFieldReference: String;
+      const AHasUpdateCascade: Boolean;
+      const AHasDeleteCascade: Boolean);
 
     property TableName: String read FTableName write FTableName;
     property FieldName: String read FFieldName write FFieldName;
     property TableReference: String read FTableReference write FTableReference;
     property FieldReference: String read FFieldReference write FFieldReference;
+    property HasUpdateCascade: Boolean read FHasUpdateCascade write FHasUpdateCascade;
+    property HasDeleteCascade: Boolean read FHasDeleteCascade write FHasDeleteCascade;
   end;
 
   TForeignKeyObjList = TList<TForeignKeyObj>;
@@ -57,6 +63,8 @@ type
     FieldName: String;
     TableReference: String;
     FieldReference: String;
+    HasUpdateCascade: Boolean;
+    HasDeleteCascade: Boolean;
   public
     procedure Reset;
   end;
@@ -75,12 +83,12 @@ type
   TDataConnector = class
   strict private
   public
+//    class procedure GetForeignKeys(
+//      const ATableName: String;
+//      var AForeignKeyTableArray: TForeignKeyTableArray); overload;
     class procedure GetForeignKeys(
       const ATableName: String;
-      var AForeignKeyTableArray: TForeignKeyTableArray); overload;
-    class procedure GetForeignKeys(
-      const ATableName: String;
-      const AForeignKeyTableObjList: TForeignKeyTableObjList); overload;
+      const AForeignKeyTableObjList: TForeignKeyTableObjList); //overload;
   end;
 
   TForeignKeyArrayHelper = record helper for TForeignKeyArray
@@ -117,12 +125,16 @@ constructor TForeignKeyObj.Create(
   const ATableName: String;
   const AFieldName: String;
   const ATableReference: String;
-  const AFieldReference: String);
+  const AFieldReference: String;
+  const AHasUpdateCascade: Boolean;
+  const AHasDeleteCascade: Boolean);
 begin
   FTableName := ATableName;
   FFieldName := AFieldName;
   FTableReference := ATableReference;
   FFieldReference := AFieldReference;
+  FHasUpdateCascade := AHasUpdateCascade;
+  FHasDeleteCascade := AHasDeleteCascade;
 end;
 
 { TForeignKeyTableObj }
@@ -184,6 +196,8 @@ begin
   FieldName := '';
   TableReference := '';
   FieldReference := '';
+  HasUpdateCascade := false;
+  HasDeleteCascade := false;
 end;
 
 { TForeignKeyTable }
@@ -242,63 +256,40 @@ end;
 
 { TDataConnector }
 
-class procedure TDataConnector.GetForeignKeys(
-  const ATableName: String;
-  var AForeignKeyTableArray: TForeignKeyTableArray);
-var
-  DataForm: TDataForm;
-  Form: TCommonCustomForm;
-  DBRowList: TDBRowList;
-  DBRow: TDBRow;
-  DBField: TDBField;
-  ForeignKey: TForeignKey;
-  i, j: Integer;
-  TableName: String;
-  ForeignKeyTable: TForeignKeyTable;
-begin
-  j := 0;
-  i := Screen.FormCount;
-  while i > 0 do
-  begin
-    Dec(i);
-
-    Form := Screen.Forms[i];
-    if Form is TDataForm then
-      DataForm := Form as TDataForm
-    else
-      Continue;
-
-    if DataForm.Caption = ATableName then
-      Continue;
-
-    DBRowList := DataForm.DBRowList;
-    if DBRowList.Count = 0 then
-      Continue;
-
-    TableName := DataForm.Caption;
-    ForeignKeyTable.TableName := TableName;
-    AForeignKeyTableArray.Add(ForeignKeyTable);
-
-    TDebug.ODS('-----');
-    DBRow := DBRowList.DDLRowPattern;
-    for DBField in DBRow do
-    begin
-      TDebug.ODS(DBField.FieldName);
-      if DBField.TableReference = ATableName then
-      begin
-        ForeignKey.TableName := DBField.TableName;
-        ForeignKey.FieldName := DBField.FieldName;
-        ForeignKey.TableReference := DBField.TableReference;
-        ForeignKey.FieldReference := DBField.FieldReference;
-
-        AForeignKeyTableArray[j].ForeignKeyArray.Add(ForeignKey);
-      end;
-    end;
-
-    Inc(j);
-    TDebug.ODS('-----');
-  end;
-end;
+//class procedure TDataConnector.GetForeignKeys(
+//  const ATableName: String;
+//  var AForeignKeyTableArray: TForeignKeyTableArray);
+//var
+//  DataForm: TDataForm;
+//  Form: TCommonCustomForm;
+//  DBRowList: TDBRowList;
+//  i: Integer;
+//  TableName: String;
+//  ForeignKeyTable: TForeignKeyTable;
+//begin
+//  i := Screen.FormCount;
+//  while i > 0 do
+//  begin
+//    Dec(i);
+//
+//    Form := Screen.Forms[i];
+//    if Form is TDataForm then
+//      DataForm := Form as TDataForm
+//    else
+//      Continue;
+//
+//    if DataForm.Caption = ATableName then
+//      Continue;
+//
+//    DBRowList := DataForm.DBRowList;
+//    if DBRowList.Count = 0 then
+//      Continue;
+//
+//    TableName := DataForm.Caption;
+//    ForeignKeyTable.TableName := TableName;
+//    AForeignKeyTableArray.Add(ForeignKeyTable);
+//  end;
+//end;
 
 class procedure TDataConnector.GetForeignKeys(
   const ATableName: String;
@@ -337,7 +328,6 @@ begin
     ForeignKeyTableObj := TForeignKeyTableObj.Create(TableName);
     AForeignKeyTableObjList.Add(ForeignKeyTableObj);
 
-    TDebug.ODS('-----');
     DBRow := DBRowList.DDLRowPattern;
     for DBField in DBRow do
     begin
@@ -348,19 +338,14 @@ begin
           DBField.TableName,
           DBField.FieldName,
           DBField.TableReference,
-          DBField.FieldReference
+          DBField.FieldReference,
+          DBField.HasUpdateCascade,
+          DBField.HasDeleteCascade
         );
-
-//        ForeignKey.TableName := DBField.TableName;
-//        ForeignKey.FieldName := DBField.FieldName;
-//        ForeignKey.TableReference := DBField.TableReference;
-//        ForeignKey.FieldReference := DBField.FieldReference;
 
         AForeignKeyTableObjList.Last.ForeignKeyObjList.Add(ForeignKeyObj);
       end;
     end;
-
-    TDebug.ODS('-----');
   end;
 end;
 

@@ -11,6 +11,9 @@ const
   ExcludingDDLString: array[0..4] of string = ('create', 'foreign key', 'references', '(', ')');
   ExcludingChars: array[0..2] of Char = (',', '(', ')');
 
+const
+  NULL_ID = -1;
+
 type
   TDBField = class
   strict private
@@ -19,7 +22,11 @@ type
     FFieldType: String;
     FFieldValue: String;
     FIsAutoIncrement: Boolean;
+    FIsNotNull: Boolean;
+    FIsUnique: Boolean;
     FIsForeignKey: Boolean;
+    FHasUpdateCascade: Boolean;
+    FHasDeleteCascade: Boolean;
     FTableReference: String;
     FFieldReference: String;
   public
@@ -30,9 +37,15 @@ type
     property FieldType: String read FFieldType write FFieldType;
     property FieldValue: String read FFieldValue write FFieldValue;
     property IsAutoIncrement: Boolean read FIsAutoIncrement write FIsAutoIncrement;
+    property IsNotNull: Boolean read FIsNotNull write FIsNotNull;
+    property IsUnique: Boolean read FIsUnique write FIsUnique;
     property IsForeignKey: Boolean read FIsForeignKey write FIsForeignKey;
+    property HasUpdateCascade: Boolean read FHasUpdateCascade write FHasUpdateCascade;
+    property HasDeleteCascade: Boolean read FHasDeleteCascade write FHasDeleteCascade;
     property TableReference: String read FTableReference write FTableReference;
     property FieldReference: String read FFieldReference write FFieldReference;
+
+    procedure CopyFrom(const ADBField: TDBField);
 
     class function ClearString(const ADirtString: String): String;
     class function CreateDBField(
@@ -93,8 +106,24 @@ begin
   FFieldValue := '';
   FIsAutoIncrement := false;
   FIsForeignKey := false;
+  FHasUpdateCascade := false;
+  FHasDeleteCascade := false;
   FTableReference := '';
   FFieldReference := '';
+end;
+
+procedure TDBField.CopyFrom(const ADBField: TDBField);
+begin
+  FTableName := ADBField.TableName;
+  FFieldName := ADBField.FieldName;
+  FFieldType := ADBField.FieldType;
+  FFieldValue := ADBField.FieldValue;
+  FIsAutoIncrement := ADBField.IsAutoIncrement;
+  FIsForeignKey := ADBField.IsForeignKey;
+  FHasUpdateCascade := ADBField.HasUpdateCascade;
+  FHasDeleteCascade := ADBField.HasDeleteCascade;
+  FTableReference := ADBField.TableReference;
+  FFieldReference := ADBField.FieldReference;
 end;
 
 class function TDBField.ClearString(const ADirtString: String): String;
@@ -146,7 +175,9 @@ begin
     Result.TableName := ATableName;
     Result.FieldName := FieldName;
     Result.FieldType := FieldType;
-    Result.IsAutoIncrement := AFieldString.Contains('autoincrement')
+    Result.IsAutoIncrement := AFieldString.Contains('autoincrement');
+    Result.IsNotNull := AFieldString.Contains('not null');
+    Result.IsUnique := AFieldString.Contains('unique');
   finally
     FreeAndNil(SplittedStrings);
   end;
@@ -174,6 +205,8 @@ begin
 end;
 
 procedure TDBRow.ParseDDLString(const ADDLString: String);
+type
+  TStringArray = TArray<String>;
 
   procedure _ParseReference(
     const AReferenceString: String;
@@ -199,14 +232,29 @@ procedure TDBRow.ParseDDLString(const ADDLString: String);
     Result := SplittedArray[2];
   end;
 
+  procedure _CheckCascade(
+    const ASplittedArray: TStringArray;
+    const AIndex: Integer;
+    const AForeignKeyField: TDBField);
+  begin
+    if AIndex < Length(ASplittedArray) then
+    begin
+      if ASplittedArray[AIndex].Contains('on update cascade') then
+        AForeignKeyField.HasUpdateCascade := true
+      else
+      if ASplittedArray[AIndex].Contains('on delete cascade') then
+        AForeignKeyField.HasDeleteCascade := true;
+    end;
+  end;
+
 var
-  SplittedArray: TArray<String>;
+  SplittedArray: TStringArray;
   DDLString: String;
   ParsingString: String;
   TrimedString: String;
   DBField: TDBField;
   DoBreak: Boolean;
-  i: Integer;
+  i, j: Integer;
   ForeignKey: String;
   TableReference: String;
   FieldReference: String;
@@ -261,6 +309,11 @@ begin
 
       ForeignKeyField.TableReference := TableReference;
       ForeignKeyField.FieldReference := FieldReference;
+
+      j := i + 1;
+      _CheckCascade(SplittedArray, j, ForeignKeyField);
+      j := j + 1;
+      _CheckCascade(SplittedArray, j, ForeignKeyField);
     end;
 
     Inc(i);

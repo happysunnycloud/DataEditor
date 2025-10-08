@@ -151,7 +151,7 @@ begin
           on e: TDBExceptionContainer do
           begin
             MessageString :=
-              Concat(METHOD, ': ', e._MethodName, ': ', e.ExceptionClass.ClassName, ': ', e._Message);
+              Concat(METHOD, ': ', e._MethodName, ': ', e.ExceptionClass.ClassName, ': ', e.Message);
             if e.ExceptionClass = ESQLiteNativeException then
             begin
               FDCommandExceptionKind := e.Kind;
@@ -168,7 +168,8 @@ begin
                 Sleep(1000);
               end;
             end;
-            raise Exception.Create(MessageString);
+            raise;
+            //raise Exception.Create(MessageString);
           end;
           on e: Exception do
           begin

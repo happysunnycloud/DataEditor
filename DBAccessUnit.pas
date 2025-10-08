@@ -24,6 +24,12 @@ type
     class function GetTableList(
       const AInParams: TParamsExt;
       const AOutParams: TParamsExt): TDBAResultCode;
+    class function UpdateTable(
+      const AInParams: TParamsExt;
+      const AOutParams: TParamsExt): TDBAResultCode;
+    class function InsertIntoTable(
+      const AInParams: TParamsExt;
+      const AOutParams: TParamsExt): TDBAResultCode;
   end;
 
 implementation
@@ -35,6 +41,7 @@ uses
   , DBExceptionContainerUnit
   , DBRowUnit
   , System.Classes
+  , DebugUnit
   ;
 
 class function TDBAccess.GetDDLForTable(
@@ -239,6 +246,118 @@ begin
         QueryResult.Next;
       end;
       DBTools.CloseQuery;
+    finally
+      DBTools.FreeQuery;
+      FreeAndNil(DBTools);
+    end;
+    AOutParams.Clear;
+  except
+    on e: Exception do
+    begin
+      raise TDBExceptionContainer.CreateExceptionContainer(e, METHOD);
+    end;
+  end;
+
+  Result := rcOk;
+end;
+
+class function TDBAccess.UpdateTable(
+  const AInParams: TParamsExt;
+  const AOutParams: TParamsExt): TDBAResultCode;
+const
+  METHOD = 'TDBAccess.UpdateTable';
+var
+  DBTools: TDBTools;
+  SQLTemplateIdent: String;
+  SQLTemplate: String;
+  TableName: String;
+  FiledList: String;
+  WhereSection: String;
+begin
+  try
+    SQLTemplateIdent := 'update_table';
+    SQLTemplate := SQLTemplates.GetTemplate(SQLTemplateIdent);
+    if Length(Trim(SQLTemplate)) = 0 then
+      raise Exception.
+        Create(Format('SQL template "%s" not found or empty', [SQLTemplateIdent]));
+
+    DBTools := TDBTools.Create(DBFileName);
+    try
+      TableName := AInParams.AsStringByIdent['table_name'];
+      FiledList := AInParams.AsStringByIdent['filed_list'];
+      WhereSection := AInParams.AsStringByIdent['where_section'];
+
+      DBTools.CreateQuery;
+      DBTools.Query.ClearQuery;
+      DBTools.Query.AddQuery(SQLTemplate);
+      DBTools.Query.AddParameterAsString(':table_name', TableName, false);
+      DBTools.Query.AddParameterAsString(':field_list', FiledList, false);
+      DBTools.Query.AddParameterAsString(':where_section', WhereSection, false);
+
+      DBTools.StartTransaction;
+      try
+        DBTools.ExecuteQuery;
+        DBTools.Commit;
+      except
+        DBTools.Rollback;
+        raise;
+      end;
+    finally
+      DBTools.FreeQuery;
+      FreeAndNil(DBTools);
+    end;
+    AOutParams.Clear;
+  except
+    on e: Exception do
+    begin
+      raise TDBExceptionContainer.CreateExceptionContainer(e, METHOD);
+    end;
+  end;
+
+  Result := rcOk;
+end;
+
+class function TDBAccess.InsertIntoTable(
+  const AInParams: TParamsExt;
+  const AOutParams: TParamsExt): TDBAResultCode;
+const
+  METHOD = 'TDBAccess.InsertIntoTable';
+var
+  DBTools: TDBTools;
+  SQLTemplateIdent: String;
+  SQLTemplate: String;
+  TableName: String;
+  FiledList: String;
+  ValueList: String;
+begin
+  try
+    SQLTemplateIdent := 'insert_into_table';
+    SQLTemplate := SQLTemplates.GetTemplate(SQLTemplateIdent);
+    if Length(Trim(SQLTemplate)) = 0 then
+      raise Exception.
+        Create(Format('SQL template "%s" not found or empty', [SQLTemplateIdent]));
+
+    DBTools := TDBTools.Create(DBFileName);
+    try
+      TableName := AInParams.AsStringByIdent['table_name'];
+      FiledList := AInParams.AsStringByIdent['filed_list'];
+      ValueList := AInParams.AsStringByIdent['value_list'];
+
+      DBTools.CreateQuery;
+      DBTools.Query.ClearQuery;
+      DBTools.Query.AddQuery(SQLTemplate);
+      DBTools.Query.AddParameterAsString(':table_name', TableName, false);
+      DBTools.Query.AddParameterAsString(':field_list', FiledList, false);
+      DBTools.Query.AddParameterAsString(':value_list', ValueList, false);
+
+      DBTools.StartTransaction;
+      try
+        DBTools.ExecuteQuery;
+        DBTools.Commit;
+      except
+        DBTools.Rollback;
+        raise;
+      end;
     finally
       DBTools.FreeQuery;
       FreeAndNil(DBTools);

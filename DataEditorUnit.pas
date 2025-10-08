@@ -11,7 +11,8 @@ uses
 
 const
 //  DB_PATH = '..\..\DataBase\Purgaroty.db';
-  DB_PATH = 'C:\Desktop\TelegramBots\theme-tg-bot-content\content.sqlite';
+//  DB_PATH = 'C:\Desktop\TelegramBots\theme-tg-bot-content\content.sqlite';
+  DB_PATH = 'DataBase\content.sqlite';
   SQL_TEMPLATES_PATH = '..\..\SQLTemplates\';
 
 type

@@ -19,7 +19,7 @@ type
     FExceptionKind: TFDCommandExceptionKind;
     FExceptionKindExists: Boolean;
     FMethodName: String;
-    FMessage: String;
+    //FMessage: String;
 
     procedure InitException(
       const AE: Pointer;
@@ -42,7 +42,7 @@ type
     property ExceptionClass: TClass read FExceptionClass;
     property Kind: TFDCommandExceptionKind read FExceptionKind;
     property _MethodName: String read FMethodName;
-    property _Message: String read FMessage;
+    //property _Message: String read FMessage;
     // Если FExceptionKindExists = False,
     // Тогда FExceptionKind = ekOther
     property ExceptionKindExists: Boolean read FExceptionKindExists;
@@ -95,7 +95,9 @@ begin
   FExceptionKindExists := false;
   FMethodName := AMethodName;
 
-  FMessage := AMessage;
+  //FMessage := AMessage;
+
+  Message := AMessage;
 end;
 
 constructor TDBExceptionContainer.Create(
