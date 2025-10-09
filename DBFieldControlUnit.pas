@@ -57,6 +57,8 @@ constructor TDBFieldControl.Create(
   const AFDBField: TDBField);
 var
   ForeignKey: String;
+  PrimaryKeyAttribute: String;
+  AutoIncrementAttribute: String;
   NotNullAttribute: String;
   UniqueAttribute: String;
 begin
@@ -86,6 +88,14 @@ begin
     ForeignKey := Format(' is foreign key ref: %s (%s)',
       [FDBField.TableReference, FDBField.FieldReference]);
 
+  PrimaryKeyAttribute := '';
+  if FDBField.IsPrimaryKey then
+    PrimaryKeyAttribute := ' (primary key)';
+
+  AutoIncrementAttribute := '';
+  if FDBField.IsAutoIncrement then
+    AutoIncrementAttribute := ' (autoincrement)';
+
   NotNullAttribute := '';
   if FDBField.IsNotNull then
     NotNullAttribute := ' (not null)';
@@ -99,6 +109,8 @@ begin
       FDBField.FieldName,
       ' ',
       FDBField.FieldType,
+      PrimaryKeyAttribute,
+      AutoIncrementAttribute,
       UniqueAttribute,
       NotNullAttribute,
       ForeignKey);
@@ -109,7 +121,7 @@ begin
   FMemo.Parent := Self;
   FMemo.Align := TAlignLayout.Client;
   FMemo.Lines.Text := '';
-  FMemo.Enabled := not FDBField.IsAutoIncrement;
+  FMemo.Enabled := not FDBField.IsPrimaryKey and not FDBField.IsAutoIncrement;
 
   Width := 200;
   Height := 100;

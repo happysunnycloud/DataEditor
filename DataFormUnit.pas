@@ -295,18 +295,14 @@ var
   TableName: String;
   ForeignKeyTableObjList: TForeignKeyTableObjList;
   ForeignKeyTableObj: TForeignKeyTableObj;
-  ForeignKeyObj: TForeignKeyObj;
-  HasUpdateCascade: Boolean;
-  HasDeleteCascade: Boolean;
-
+  ForeignKey: TForeignKey;
   References: String;
+  ParamsIn: TParamsExt;
 begin
   DBRow := FDBRowList[FCurrentRowIndex];
 
   // --- Находим кто смотрит на эту форму ---
 
-  HasUpdateCascade := false;
-  HasDeleteCascade := false;
   References := '';
   ForeignKeyTableObjList := TForeignKeyTableObjList.Create;
   try
@@ -314,20 +310,45 @@ begin
 
     for ForeignKeyTableObj in ForeignKeyTableObjList do
     begin
-      for ForeignKeyObj in ForeignKeyTableObj.ForeignKeyObjList do
+      for ForeignKey in ForeignKeyTableObj.ForeignKeyObjList do
       begin
-        if ForeignKeyObj.HasDeleteCascade then
+        if ForeignKey.HasDeleteCascade then
           References :=
             Concat(
               References,
               ForeignKeyTableObj.TableName,
               '.',
-              ForeignKeyObj.FieldReference,
+              ForeignKey.FieldReference,
               #10);
       end;
     end;
   finally
     FreeAndNil(ForeignKeyTableObjList);
+  end;
+
+  if References.Length > 0 then
+  begin
+    References :=
+      Concat(
+        'Внимание!', #10, #10,
+        'На эту таблицу есть ссылки с каскадным удалением:', #10,
+        References, #10,
+        'Связанные записи так же бьудут удалены', #10,
+        'Породолжить?');
+
+    if MessageDlg(References, TMsgDlgType.mtConfirmation,
+      [TMsgDlgBtn.mbYes, TMsgDlgBtn.mbNo], 0) = mrYes
+    then
+    begin
+      ParamsIn := TParamsExt.Create;
+      try
+        ParamsIn.Add(Caption, 'table_name');
+        DBRow.Field['id'];
+      finally
+        FreeAndNil(ParamsIn);
+      end;
+      DDLMemo.Text := References;
+    end;
   end;
 end;
 
@@ -530,7 +551,7 @@ begin
       begin
         DBField := AObject.DBField;
         MemoText := AObject.Memo.Text;
-        if DBField.IsAutoIncrement then
+        if DBField.IsPrimaryKey then
         begin
           IdFieldText :=
             Format('%s = %s', [DBField.FieldName, MemoText])
@@ -621,7 +642,7 @@ var
   TableName: String;
   ForeignKeyTableObjList: TForeignKeyTableObjList;
   ForeignKeyTableObj: TForeignKeyTableObj;
-  ForeignKeyObj: TForeignKeyObj;
+  ForeignKey: TForeignKey;
 begin
   FCurrentRowIndex := Row;
 
@@ -638,15 +659,15 @@ begin
     for ForeignKeyTableObj in ForeignKeyTableObjList do
     begin
       WhereSection := 'where ';
-      for ForeignKeyObj in ForeignKeyTableObj.ForeignKeyObjList do
+      for ForeignKey in ForeignKeyTableObj.ForeignKeyObjList do
       begin
-        ForeignKeyDBField := DBRow.Field[ForeignKeyObj.FieldReference];
+        ForeignKeyDBField := DBRow.Field[ForeignKey.FieldReference];
         FieldValue := ForeignKeyDBField.FieldValue;
         if ForeignKeyDBField.FieldType = 'text' then
           FieldValue := QuotedStr(FieldValue);
 
         WhereSection := WhereSection +
-          Format('%s = %s and ', [ForeignKeyObj.FieldName, FieldValue]);
+          Format('%s = %s and ', [ForeignKey.FieldName, FieldValue]);
       end;
 
       WhereSection := Trim(WhereSection);
@@ -675,16 +696,9 @@ begin
           ForeignKeyTableObj := TForeignKeyTableObj.Create(DBField.TableReference);
           ForeignKeyTableObjList.Add(ForeignKeyTableObj);
         end;
-//        ForeignKeyDBField := DBRow.Field[DBField.FieldName];
-        ForeignKeyObj := TForeignKeyObj.Create(
-          '',
-          DBField.FieldName,
-          '',
-          DBField.FieldReference,
-          DBField.HasUpdateCascade,
-          DBField.HasDeleteCascade
-        );
-        ForeignKeyTableObj.ForeignKeyObjList.Add(ForeignKeyObj);
+        ForeignKey := TForeignKey.Create;
+        ForeignKey.CopyFrom(DBField);
+        ForeignKeyTableObj.ForeignKeyObjList.Add(ForeignKey);
       end;
     end;
 
@@ -694,15 +708,15 @@ begin
       WhereSection := 'where ';
       DDLMemo.Lines.Add(ForeignKeyTableObj.TableName);
 
-      for ForeignKeyObj in ForeignKeyTableObj.ForeignKeyObjList do
+      for ForeignKey in ForeignKeyTableObj.ForeignKeyObjList do
       begin
-        ForeignKeyDBField := DBRow.Field[ForeignKeyObj.FieldName];
+        ForeignKeyDBField := DBRow.Field[ForeignKey.FieldName];
         FieldValue := ForeignKeyDBField.FieldValue;
         if ForeignKeyDBField.FieldType = 'text' then
           FieldValue := QuotedStr(FieldValue);
 
         WhereSection := WhereSection +
-          Format('%s = %s and ', [ForeignKeyObj.FieldReference, FieldValue]);
+          Format('%s = %s and ', [ForeignKey.FieldReference, FieldValue]);
       end;
 
       WhereSection := Trim(WhereSection);

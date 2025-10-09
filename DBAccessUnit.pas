@@ -30,6 +30,9 @@ type
     class function InsertIntoTable(
       const AInParams: TParamsExt;
       const AOutParams: TParamsExt): TDBAResultCode;
+    class function DeleteFromTable(
+      const AInParams: TParamsExt;
+      const AOutParams: TParamsExt): TDBAResultCode;
   end;
 
 implementation
@@ -57,7 +60,7 @@ var
   TableName: String;
   DDLString: String;
   Field: TField;
-  FieldName: String;
+//  FieldName: String;
 begin
   try
     SQLTemplateIdent := 'get_ddl_for_table';
@@ -77,10 +80,10 @@ begin
       QueryResult := DBTools.OpenQuery;
 
       DDLString := QueryResult.FindField('sql').AsString;
-      for Field in QueryResult.Fields do
-      begin
-        FieldName := Field.FieldName;
-      end;
+//      for Field in QueryResult.Fields do
+//      begin
+//        FieldName := Field.FieldName;
+//      end;
 
       DBTools.CloseQuery;
     finally
@@ -373,6 +376,58 @@ begin
   Result := rcOk;
 end;
 
+class function TDBAccess.DeleteFromTable(
+  const AInParams: TParamsExt;
+  const AOutParams: TParamsExt): TDBAResultCode;
+const
+  METHOD = 'TDBAccess.DeleteFromTable';
+var
+  DBTools: TDBTools;
+  SQLTemplateIdent: String;
+  SQLTemplate: String;
+  TableName: String;
+  Id: String;
+begin
+  try
+    SQLTemplateIdent := 'delete_from_table';
+    SQLTemplate := SQLTemplates.GetTemplate(SQLTemplateIdent);
+    if Length(Trim(SQLTemplate)) = 0 then
+      raise Exception.
+        Create(Format('SQL template "%s" not found or empty', [SQLTemplateIdent]));
+
+    DBTools := TDBTools.Create(DBFileName);
+    try
+      TableName := AInParams.AsStringByIdent['table_name'];
+      Id := AInParams.AsStringByIdent['id'];
+
+      DBTools.CreateQuery;
+      DBTools.Query.ClearQuery;
+      DBTools.Query.AddQuery(SQLTemplate);
+      DBTools.Query.AddParameterAsString(':table_name', TableName, false);
+      DBTools.Query.AddParameterAsString(':id', id);
+
+      DBTools.StartTransaction;
+      try
+        DBTools.ExecuteQuery;
+        DBTools.Commit;
+      except
+        DBTools.Rollback;
+        raise;
+      end;
+    finally
+      DBTools.FreeQuery;
+      FreeAndNil(DBTools);
+    end;
+    AOutParams.Clear;
+  except
+    on e: Exception do
+    begin
+      raise TDBExceptionContainer.CreateExceptionContainer(e, METHOD);
+    end;
+  end;
+
+  Result := rcOk;
+end;
 
 end.
 

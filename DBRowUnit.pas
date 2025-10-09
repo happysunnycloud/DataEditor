@@ -21,6 +21,7 @@ type
     FFieldName: String;
     FFieldType: String;
     FFieldValue: String;
+    FIsPrimaryKey: Boolean;
     FIsAutoIncrement: Boolean;
     FIsNotNull: Boolean;
     FIsUnique: Boolean;
@@ -36,6 +37,7 @@ type
     property FieldName: String read FFieldName write FFieldName;
     property FieldType: String read FFieldType write FFieldType;
     property FieldValue: String read FFieldValue write FFieldValue;
+    property IsPrimaryKey: Boolean read FIsPrimaryKey write FIsPrimaryKey;
     property IsAutoIncrement: Boolean read FIsAutoIncrement write FIsAutoIncrement;
     property IsNotNull: Boolean read FIsNotNull write FIsNotNull;
     property IsUnique: Boolean read FIsUnique write FIsUnique;
@@ -104,6 +106,7 @@ begin
   FFieldName := '';
   FFieldType := '';
   FFieldValue := '';
+  FIsPrimaryKey := false;
   FIsAutoIncrement := false;
   FIsForeignKey := false;
   FHasUpdateCascade := false;
@@ -118,6 +121,7 @@ begin
   FFieldName := ADBField.FieldName;
   FFieldType := ADBField.FieldType;
   FFieldValue := ADBField.FieldValue;
+  FIsPrimaryKey := ADBField.IsPrimaryKey;
   FIsAutoIncrement := ADBField.IsAutoIncrement;
   FIsForeignKey := ADBField.IsForeignKey;
   FHasUpdateCascade := ADBField.HasUpdateCascade;
@@ -175,6 +179,7 @@ begin
     Result.TableName := ATableName;
     Result.FieldName := FieldName;
     Result.FieldType := FieldType;
+    Result.IsPrimaryKey := AFieldString.Contains('primary key');
     Result.IsAutoIncrement := AFieldString.Contains('autoincrement');
     Result.IsNotNull := AFieldString.Contains('not null');
     Result.IsUnique := AFieldString.Contains('unique');
@@ -247,12 +252,72 @@ type
     end;
   end;
 
+  function _CreateDBField(
+    const ATableName: String;
+    const ADDLString: String): TDBField;
+  begin
+    Result := TDBField.CreateDBField(ATableName, ADDLString);
+    Add(Result);
+  end;
+
+  function _AddLF(const ADDLString: String): String;
+  var
+    DDLString: String;
+    i: Integer;
+    LF: Char;
+  begin
+    Result := '';
+
+    LF := #10;
+
+    DDLString := ADDLString;
+    for i := 1 to Length(DDLString) do
+    begin
+      if (DDLString[i] = '(') or
+         (DDLString[i] = ',') or
+         (DDLString[i] = ';')
+      then
+      begin
+        Result := Result + DDLString[i] + LF;
+      end
+      else
+      if (DDLString[i] = ')')
+      then
+      begin
+        Result := Result + LF + DDLString[i];
+      end
+      else
+        Result := Result + DDLString[i];
+    end;
+  end;
+
+  procedure _ParsePrimaryKeys(
+    const ASplittedArray: TStringArray;
+    const AIndex: Integer);
+  var
+    i: Integer;
+    TrimmedString: String;
+    ClearString: String;
+  begin
+    i := AIndex;
+    while i < Length(ASplittedArray) do
+    begin
+      TrimmedString := Trim(ASplittedArray[i]);
+      if TrimmedString = ')' then
+        Break;
+
+      ClearString := TDBField.ClearString(TrimmedString);
+      Self.Field[ClearString].IsPrimaryKey := true;
+
+      Inc(i);
+    end;
+  end;
+
 var
   SplittedArray: TStringArray;
   DDLString: String;
   ParsingString: String;
   TrimedString: String;
-  DBField: TDBField;
   DoBreak: Boolean;
   i, j: Integer;
   ForeignKey: String;
@@ -264,6 +329,13 @@ var
 begin
   DDLString := ADDLString;
   SplittedArray := DDLString.Split([#10]);
+
+  if Length(SplittedArray) = 1 then
+  begin
+    DDLString := _AddLF(SplittedArray[0]);
+    SplittedArray := DDLString.Split([#10]);
+  end;
+
   TableName := _PareseTableName(SplittedArray[0]);
 
   DoBreak := false;
@@ -275,8 +347,7 @@ begin
       TrimedString := Trim(ParsingString);
       if TrimedString.Length > 0 then
       begin
-        DBField := TDBField.CreateDBField(TableName, TrimedString);
-        Add(DBField);
+        _CreateDBField(TableName, TrimedString);
       end;
     end
     else
@@ -288,6 +359,23 @@ begin
       else
         Break;
     end;
+  end;
+
+  // Если primary key составной
+  i := 0;
+  while i < Length(SplittedArray) do
+  begin
+    ParsingString := String.LowerCase(SplittedArray[i]);
+    if ParsingString.Contains('primary key (') then
+    begin
+      Inc(i);
+
+      _ParsePrimaryKeys(SplittedArray, i);
+
+      Break;
+    end;
+
+    Inc(i);
   end;
 
   i := 0;
