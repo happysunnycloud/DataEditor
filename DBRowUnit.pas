@@ -13,6 +13,8 @@ const
 
 const
   NULL_ID = -1;
+  FIELD_TYPE_TEXT = 'text';
+  FIELD_TYPE_INTEGER = 'integer';
 
 type
   TDBField = class
@@ -53,6 +55,12 @@ type
     class function CreateDBField(
       const ATableName: String;
       const AFieldString: String): TDBField;
+
+    class function CreateDefaulDBField(
+      const ATableName: String;
+      const AFieldName: String;
+      const AFieldType: String;
+      const AFieldValue: String = ''): TDBField;
   end;
 
   // Переименовать в TDBRow
@@ -108,11 +116,34 @@ begin
   FFieldValue := '';
   FIsPrimaryKey := false;
   FIsAutoIncrement := false;
+  FIsNotNull := false;;
+  FIsUnique := false;
   FIsForeignKey := false;
   FHasUpdateCascade := false;
   FHasDeleteCascade := false;
   FTableReference := '';
   FFieldReference := '';
+end;
+
+class function TDBField.CreateDefaulDBField(
+  const ATableName: String;
+  const AFieldName: String;
+  const AFieldType: String;
+  const AFieldValue: String = ''): TDBField;
+begin
+  Result := TDBField.Create;
+  Result.TableName := ATableName;
+  Result.FieldName := AFieldName;
+  Result.FieldType := AFieldType;
+  if AFieldValue.Length > 0 then
+  begin
+    Result.FieldValue := AFieldValue
+  end
+  else
+  begin
+    if Result.FieldType = FIELD_TYPE_INTEGER then
+      Result.FieldValue := '0';
+  end;
 end;
 
 procedure TDBField.CopyFrom(const ADBField: TDBField);
@@ -175,10 +206,12 @@ begin
     FieldName := ClearString(SplittedStrings[0]);
     FieldType := ClearString(SplittedStrings[1]);
 
-    Result := TDBField.Create;
-    Result.TableName := ATableName;
-    Result.FieldName := FieldName;
-    Result.FieldType := FieldType;
+    Result :=
+      TDBField.CreateDefaulDBField(
+        ATableName,
+        FieldName,
+        FieldType);
+
     Result.IsPrimaryKey := AFieldString.Contains('primary key');
     Result.IsAutoIncrement := AFieldString.Contains('autoincrement');
     Result.IsNotNull := AFieldString.Contains('not null');

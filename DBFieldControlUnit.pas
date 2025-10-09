@@ -125,7 +125,7 @@ begin
 
   Width := 200;
   Height := 100;
-  if FDBField.FieldType = 'integer' then
+  if FDBField.FieldType = FIELD_TYPE_INTEGER then
     Height := FLabel.Height + 25;
 
   FRegistryRef.RegisterObject(Self);

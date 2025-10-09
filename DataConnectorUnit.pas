@@ -161,7 +161,7 @@ begin
       Continue;
 
     DBRowList := DataForm.DBRowList;
-    if DBRowList.Count = 0 then
+    if DBRowList.DDLRowPattern.Count = 0 then
       Continue;
 
     TableName := DataForm.Caption;

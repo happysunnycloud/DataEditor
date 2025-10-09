@@ -15,7 +15,8 @@ uses
   ObjectRegistryUnit in '..\DevelopmentsCollection\ObjectRegistryUnit.pas',
   DebugUnit in '..\DevelopmentsCollection\DebugUnit.pas',
   DBRowUnit in 'DBRowUnit.pas',
-  DataConnectorUnit in 'DataConnectorUnit.pas';
+  DataConnectorUnit in 'DataConnectorUnit.pas',
+  FMX.DialogUnit in 'FMX.DialogUnit.pas';
 
 {$R *.res}
 

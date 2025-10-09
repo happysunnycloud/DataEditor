@@ -59,8 +59,6 @@ var
   QueryResult: TDBQuery;
   TableName: String;
   DDLString: String;
-  Field: TField;
-//  FieldName: String;
 begin
   try
     SQLTemplateIdent := 'get_ddl_for_table';
@@ -168,12 +166,14 @@ begin
 
         for Field in QueryResult.Fields do
         begin
-          DBField := TDBField.Create;
-          DBField.TableName := TableName;
-          DBField.FieldName := Field.FieldName;
-          DBField.FieldValue := Field.AsString;
           DBFieldTmp := DBRowList.DDLRowPattern.Field[Field.FieldName];
-          DBField.FieldType := DBFieldTmp.FieldType;
+
+          DBField :=
+            TDBField.CreateDefaulDBField(
+              TableName,
+              Field.FieldName,
+              DBFieldTmp.FieldType,
+              Field.AsString);
 
           DBRow.Add(DBField);
         end;
@@ -386,7 +386,10 @@ var
   SQLTemplateIdent: String;
   SQLTemplate: String;
   TableName: String;
-  Id: String;
+  WhereSection: String;
+  //asd
+  sql: String;
+  //asd
 begin
   try
     SQLTemplateIdent := 'delete_from_table';
@@ -398,13 +401,15 @@ begin
     DBTools := TDBTools.Create(DBFileName);
     try
       TableName := AInParams.AsStringByIdent['table_name'];
-      Id := AInParams.AsStringByIdent['id'];
+      WhereSection := AInParams.AsStringByIdent['where_section'];
 
       DBTools.CreateQuery;
       DBTools.Query.ClearQuery;
       DBTools.Query.AddQuery(SQLTemplate);
       DBTools.Query.AddParameterAsString(':table_name', TableName, false);
-      DBTools.Query.AddParameterAsString(':id', id);
+      DBTools.Query.AddParameterAsString(':where_section', WhereSection, false);
+
+      sql := DBTools.Query.SQLQueryPrepared;
 
       DBTools.StartTransaction;
       try

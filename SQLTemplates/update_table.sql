@@ -1,4 +1,4 @@
-PRAGMA foreign_keys = 0;
+--PRAGMA foreign_keys = 0;
 
 update
     :table_name
@@ -8,4 +8,4 @@ where
     :where_section
 ;
 
-PRAGMA foreign_keys = 1;
+--PRAGMA foreign_keys = 1;

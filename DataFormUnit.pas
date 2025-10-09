@@ -4,11 +4,11 @@ interface
 
 uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
-  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs, System.Rtti,
-  FMX.Grid.Style, FMX.Layouts, FMX.Controls.Presentation, FMX.ScrollBox,
-  FMX.Grid, FMX.Memo.Types, FMX.Memo, FMX.StdCtrls
+  FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Memo.Types, System.Rtti,
+  FMX.Grid.Style, FMX.Grid, FMX.ScrollBox, FMX.Memo, FMX.Objects, FMX.StdCtrls,
+  FMX.Controls.Presentation, FMX.Layouts, FMX.Dialogs
   , DBRowUnit
-  , DBFieldControlUnit, System.ImageList, FMX.ImgList, FMX.Objects
+  , DBFieldControlUnit, System.ImageList, FMX.ImgList
   ;
 
 type
@@ -32,7 +32,8 @@ type
     AddSpeedButton: TSpeedButton;
     DuplicateSpeedButtonImage: TImage;
     AddSpeedButtonImage: TImage;
-    SpeedButton1: TSpeedButton;
+    DeleteSpeedButton: TSpeedButton;
+    DeleteSpeedButtonImage: TImage;
     procedure DataStringGridCellClick(const Column: TColumn;
       const Row: Integer);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -42,7 +43,7 @@ type
     procedure UpdateSpeedButtonClick(Sender: TObject);
     procedure DuplicateSpeedButtonClick(Sender: TObject);
     procedure AddSpeedButtonClick(Sender: TObject);
-    procedure SpeedButton1Click(Sender: TObject);
+    procedure DeleteSpeedButtonClick(Sender: TObject);
   private
     { Private declarations }
     FDBFieldControlRegistry: TDBFieldControlRegistry;
@@ -58,6 +59,12 @@ type
       var AFieldList: String;
       var AValueList: String;
       const ACollectValues: Boolean);
+
+    function CollectPrimaryKeys: String;
+    function FormatDBFieldString(
+      const ADBField: TDBField;
+      const AText: String;
+      const ASplitter: String): String;
   public
     { Public declarations }
     procedure SetTableName(const ATableName: String);
@@ -74,10 +81,12 @@ implementation
 {$R *.fmx}
 
 uses
-    DBAccessUnit
+    FMX.DialogService
+  , DBAccessUnit
   , ParamsExtUnit
   , DataConnectorUnit
   , DBExceptionContainerUnit
+  , FMX.DialogUnit
   , DebugUnit
   ;
 
@@ -285,22 +294,17 @@ begin
   RefreshContent(ATableName);
 end;
 
-procedure TDataForm.SpeedButton1Click(Sender: TObject);
+procedure TDataForm.DeleteSpeedButtonClick(Sender: TObject);
 var
-  DBRow: TDBRow;
-  DBField: TDBField;
-  DBFieldControl: TDBFieldControl;
-  ForeignKeyDBField: TDBField;
-  FieldValue: String;
-  TableName: String;
   ForeignKeyTableObjList: TForeignKeyTableObjList;
   ForeignKeyTableObj: TForeignKeyTableObj;
   ForeignKey: TForeignKey;
   References: String;
+  IdFieldText: String;
+  WhereSection: String;
   ParamsIn: TParamsExt;
+  IsCanceled: Boolean;
 begin
-  DBRow := FDBRowList[FCurrentRowIndex];
-
   // --- Находим кто смотрит на эту форму ---
 
   References := '';
@@ -326,6 +330,7 @@ begin
     FreeAndNil(ForeignKeyTableObjList);
   end;
 
+  IsCanceled := false;
   if References.Length > 0 then
   begin
     References :=
@@ -336,20 +341,39 @@ begin
         'Связанные записи так же бьудут удалены', #10,
         'Породолжить?');
 
-    if MessageDlg(References, TMsgDlgType.mtConfirmation,
-      [TMsgDlgBtn.mbYes, TMsgDlgBtn.mbNo], 0) = mrYes
-    then
-    begin
-      ParamsIn := TParamsExt.Create;
-      try
-        ParamsIn.Add(Caption, 'table_name');
-        DBRow.Field['id'];
-      finally
-        FreeAndNil(ParamsIn);
-      end;
-      DDLMemo.Text := References;
-    end;
+    TDialog.Confirm(References,
+      procedure(Confirmed: Boolean)
+      begin
+        if not Confirmed then
+        begin
+          TDialog.ShowMessage('Отмена.');
+
+          IsCanceled := true
+        end;
+      end);
   end;
+
+  if IsCanceled then
+    Exit;
+
+  IdFieldText := CollectPrimaryKeys;
+  WhereSection := Format('%s', [IdFieldText]);
+
+  ParamsIn := TParamsExt.Create;
+  try
+    ParamsIn.Add(Caption, 'table_name');
+    ParamsIn.Add(WhereSection, 'where_section');
+
+    TDBAccess.DBAParamsFunc(TDBAccess.DeleteFromTable, ParamsIn, nil);
+  finally
+    FreeAndNil(ParamsIn);
+  end;
+
+  RefreshContent(Caption);
+
+  Dec(FCurrentRowIndex);
+  DataStringGrid.Row := FCurrentRowIndex;
+  FillDBFieldControls(FCurrentRowIndex);
 end;
 
 procedure TDataForm.InsertIntoTable(
@@ -436,7 +460,7 @@ begin
           if ACollectValues then
             FieldValue := MemoText;
 
-          if DBField.FieldType = 'text' then
+          if DBField.FieldType = FIELD_TYPE_TEXT then
             ValueString :=
               Format('%s,', [QuotedStr(FieldValue)])
           else
@@ -489,6 +513,49 @@ begin
   end;
 end;
 
+function TDataForm.CollectPrimaryKeys: String;
+var
+  PrimaryKeys: String;
+begin
+  Result := '';
+
+  FDBFieldControlRegistry.ForwardEnumerator(
+    procedure (const AObject: TDBFieldControl)
+    var
+      DBField: TDBField;
+      MemoText: String;
+    begin
+      DBField := AObject.DBField;
+      MemoText := AObject.Memo.Text;
+      if DBField.IsPrimaryKey then
+      begin
+        if PrimaryKeys.Length = 0 then
+          PrimaryKeys :=
+            FormatDBFieldString(DBField, MemoText, '')
+        else
+          PrimaryKeys :=
+            Concat(PrimaryKeys, ' and ', FormatDBFieldString(DBField, MemoText, ''));
+      end;
+    end
+  );
+
+  Result := PrimaryKeys;
+end;
+
+function TDataForm.FormatDBFieldString(
+  const ADBField: TDBField;
+  const AText: String;
+  const ASplitter: String): String;
+var
+  Text: String;
+begin
+  Text := AText;
+  if ADBField.FieldType = FIELD_TYPE_TEXT then
+    Text := QuotedStr(Text);
+
+  Result := Format('%s = %s%s', [ADBField.FieldName, Text, ASplitter]);
+end;
+
 procedure TDataForm.DuplicateSpeedButtonClick(Sender: TObject);
 var
   FieldListText: String;
@@ -508,7 +575,18 @@ var
   FieldListText: String;
   ValueListText: String;
 begin
-  CollectFieldList(FieldListText, ValueListText, false);
+  // Установим дефолтные значения по паттерну
+  FDBFieldControlRegistry.ForwardEnumerator(
+    procedure (const AObject: TDBFieldControl)
+    var
+      DBField: TDBField;
+    begin
+      DBField := FDBRowList.DDLRowPattern.Field[AObject.DBField.FieldName];
+      AObject.Memo.Text := DBField.FieldValue;
+    end
+  );
+
+  CollectFieldList(FieldListText, ValueListText, true);
   InsertIntoTable(Caption, FieldListText, ValueListText);
 
   RefreshContent(Caption);
@@ -542,6 +620,9 @@ begin
     'The fields are foreign keys and must be populated' + #10 +
     'Otherwise, the relationship between the tables for this record will be broken';
 
+
+  IdFieldText := CollectPrimaryKeys;
+
   FieldList := TStringList.Create;
   try
     FDBFieldControlRegistry.ForwardEnumerator(
@@ -551,35 +632,22 @@ begin
       begin
         DBField := AObject.DBField;
         MemoText := AObject.Memo.Text;
-        if DBField.IsPrimaryKey then
-        begin
-          IdFieldText :=
-            Format('%s = %s', [DBField.FieldName, MemoText])
-        end
-        else
-        begin
-          if DBField.FieldType = 'text' then
-            FieldString :=
-              Format('%s = %s,', [DBField.FieldName, QuotedStr(MemoText)])
-          else
-            FieldString :=
-              Format('%s = %s,', [DBField.FieldName, MemoText]);
 
-          FieldList.Add(FieldString);
+        FieldString := FormatDBFieldString(DBField, MemoText, ', ');
+        FieldList.Add(FieldString);
 
-          IsNotNull := DBField.IsForeignKey;
-          IsForeignKey := DBField.IsForeignKey;
-          if IsNotNull then
-            if AObject.Memo.Text.IsEmpty then
-            begin
-              NullFields := NullFields + #10 + DBField.FieldName;
-            end;
-          if IsForeignKey then
-            if AObject.Memo.Text.IsEmpty then
-            begin
-              EmptyForeignKeys := EmptyForeignKeys + #10 + DBField.FieldName;
-            end;
-        end;
+        IsNotNull := DBField.IsForeignKey;
+        IsForeignKey := DBField.IsForeignKey;
+        if IsNotNull then
+          if AObject.Memo.Text.IsEmpty then
+          begin
+            NullFields := NullFields + #10 + DBField.FieldName;
+          end;
+        if IsForeignKey then
+          if AObject.Memo.Text.IsEmpty then
+          begin
+            EmptyForeignKeys := EmptyForeignKeys + #10 + DBField.FieldName;
+          end;
       end
     );
 
@@ -663,7 +731,7 @@ begin
       begin
         ForeignKeyDBField := DBRow.Field[ForeignKey.FieldReference];
         FieldValue := ForeignKeyDBField.FieldValue;
-        if ForeignKeyDBField.FieldType = 'text' then
+        if ForeignKeyDBField.FieldType = FIELD_TYPE_TEXT then
           FieldValue := QuotedStr(FieldValue);
 
         WhereSection := WhereSection +
@@ -712,7 +780,7 @@ begin
       begin
         ForeignKeyDBField := DBRow.Field[ForeignKey.FieldName];
         FieldValue := ForeignKeyDBField.FieldValue;
-        if ForeignKeyDBField.FieldType = 'text' then
+        if ForeignKeyDBField.FieldType = FIELD_TYPE_TEXT then
           FieldValue := QuotedStr(FieldValue);
 
         WhereSection := WhereSection +
