@@ -34,6 +34,8 @@ type
     AddSpeedButtonImage: TImage;
     DeleteSpeedButton: TSpeedButton;
     DeleteSpeedButtonImage: TImage;
+    VerticalSplitter: TSplitter;
+    HorizontalSplitter: TSplitter;
     procedure DataStringGridCellClick(const Column: TColumn;
       const Row: Integer);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -87,6 +89,7 @@ uses
   , DataConnectorUnit
   , DBExceptionContainerUnit
   , FMX.DialogUnit
+  , FMX.FormLayoutXMLUnit
   , DebugUnit
   ;
 
@@ -807,12 +810,16 @@ end;
 
 procedure TDataForm.FormCreate(Sender: TObject);
 begin
+  TLayoutHelper.LoadFormLayout(Self);
+
   FDBRowList := TDBRowList.Create;
   FDBFieldControlRegistry := TDBFieldControlRegistry.Create;
 end;
 
 procedure TDataForm.FormDestroy(Sender: TObject);
 begin
+  TLayoutHelper.SaveFormLayout(Self);
+
   FreeAndNil(FDBRowList);
   FreeAndNil(FDBFieldControlRegistry);
 end;

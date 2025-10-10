@@ -1,4 +1,4 @@
-unit DataEditorUnit;
+﻿unit DataEditorUnit;
 
 interface
 
@@ -42,6 +42,7 @@ implementation
 uses
     DBAccessUnit
   , ParamsExtUnit
+  , FMX.FormLayoutXMLUnit
   ;
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -129,6 +130,11 @@ begin
   ReportMemoryLeaksOnShutdown := true;
 
   TDBAccess.Init(DB_PATH, SQL_TEMPLATES_PATH);
+
+  if not DirectoryExists('Config') then
+    CreateDir('Config');
+
+  TLayoutHelper.Init(Concat('Config', '\', ExtractFileName(DB_PATH), '.xml'));
 
   GetTableList;
 end;

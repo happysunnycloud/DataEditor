@@ -16,7 +16,8 @@ uses
   DebugUnit in '..\DevelopmentsCollection\DebugUnit.pas',
   DBRowUnit in 'DBRowUnit.pas',
   DataConnectorUnit in 'DataConnectorUnit.pas',
-  FMX.DialogUnit in 'FMX.DialogUnit.pas';
+  FMX.DialogUnit in 'FMX.DialogUnit.pas',
+  FMX.FormLayoutXMLUnit in 'FMX.FormLayoutXMLUnit.pas';
 
 {$R *.res}
 
