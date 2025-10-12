@@ -62,7 +62,7 @@ begin
     Exit;
   end;
 
-  DataForm := TDataForm.Create(Self);
+  DataForm := TDataForm.Create(Self, Concat('DataForm_', TableName));
   DataForm.SetTableName(TableName);
   DataForm.Show;
 end;
@@ -97,6 +97,9 @@ var
   ParamsOut: TParamsExt;
   TableName: String;
   TableNameButton: TButton;
+  XMLFormsList: TArray<string>;
+  FormName: String;
+  FormFound: Boolean;
 begin
   TableList := TStringList.Create;
   try
@@ -120,6 +123,22 @@ begin
       FreeAndNil(ParamsOut);
       FreeAndNil(ParamsIn);
     end;
+
+    // Чистим XML от лишних настроек
+    // Если такой таблицы нет в базе, то и ее настройки тоже не нужны
+    XMLFormsList := TLayoutHelper.GetFormsList;
+    for FormName in XMLFormsList do
+    begin
+      FormFound := false;
+      for TableName in TableList do
+      begin
+        if FormName = Concat('DataForm_', TableName) then
+          FormFound := true;
+      end;
+
+      if not FormFound then
+        TLayoutHelper.DeleteFormLayout(FormName);
+    end;
   finally
     FreeAndNil(TableList);
   end;
@@ -128,6 +147,8 @@ end;
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
   ReportMemoryLeaksOnShutdown := true;
+
+  TLayoutHelper.LoadFormLayout(Self);
 
   TDBAccess.Init(DB_PATH, SQL_TEMPLATES_PATH);
 
@@ -142,6 +163,8 @@ end;
 procedure TMainForm.FormDestroy(Sender: TObject);
 begin
   TDBAccess.UnInit;
+
+  TLayoutHelper.SaveFormLayout(Self);
 end;
 
 end.

@@ -164,7 +164,7 @@ var
   DBFieldControl: TDBFieldControl;
 begin
   BackwardEnumerator(
-    procedure (const AObject: TDBFieldControl)
+    procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
     begin
       if AFDBField.FieldName = AObject.DBField.FieldName then
       begin

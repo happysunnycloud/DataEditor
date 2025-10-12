@@ -1,4 +1,4 @@
-unit DataFormUnit;
+п»їunit DataFormUnit;
 
 interface
 
@@ -12,6 +12,8 @@ uses
   ;
 
 type
+  TAcceptedProcRef = reference to procedure;
+
   TDataForm = class(TForm)
     DBFieldsLayout: TLayout;
     DBFieldsScrollBox: TScrollBox;
@@ -36,6 +38,11 @@ type
     DeleteSpeedButtonImage: TImage;
     VerticalSplitter: TSplitter;
     HorizontalSplitter: TSplitter;
+    AcceptSpeedButton: TSpeedButton;
+    CancelSpeedButton: TSpeedButton;
+    AcceptSpeedButtonImage: TImage;
+    CancelSpeedButtonImage: TImage;
+    AcceptLayout: TLayout;
     procedure DataStringGridCellClick(const Column: TColumn;
       const Row: Integer);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
@@ -46,17 +53,20 @@ type
     procedure DuplicateSpeedButtonClick(Sender: TObject);
     procedure AddSpeedButtonClick(Sender: TObject);
     procedure DeleteSpeedButtonClick(Sender: TObject);
+    procedure AcceptSpeedButtonClick(Sender: TObject);
+    procedure CancelSpeedButtonClick(Sender: TObject);
   private
     { Private declarations }
     FDBFieldControlRegistry: TDBFieldControlRegistry;
     FDBRowList: TDBRowList;
     FCurrentRowIndex: Integer;
+    FAcceptedProc: TAcceptedProcRef;
 
     procedure ClearContent;
-    procedure InsertIntoTable(
+    function InsertIntoTable(
       const ATableName: String;
       const AFieldList: String;
-      const AValueList: String);
+      const AValueList: String): Boolean;
     procedure CollectFieldList(
       var AFieldList: String;
       var AValueList: String;
@@ -67,14 +77,18 @@ type
       const ADBField: TDBField;
       const AText: String;
       const ASplitter: String): String;
+
+    function CheckFields: Boolean;
   public
     { Public declarations }
+    constructor Create(AOwner: TComponent; AName: String); reintroduce;
+
     procedure SetTableName(const ATableName: String);
     procedure RefreshContent(
       const ATableName: String;
       const AWhereSection: String = '');
     procedure FillDBFieldControls(const ARowIndex: Integer);
-
+    procedure DoInsert;
     property DBRowList: TDBRowList read FDBRowList write FDBRowList;
   end;
 
@@ -119,6 +133,13 @@ begin
 end;
 
 { TDataForm }
+
+procedure TDataForm.CancelSpeedButtonClick(Sender: TObject);
+begin
+  FAcceptedProc := nil;
+
+  AcceptLayout.Visible := false;
+end;
 
 procedure TDataForm.ClearContent;
 var
@@ -225,6 +246,45 @@ begin
   end;
 end;
 
+procedure TDataForm.DoInsert;
+var
+  FieldListText: String;
+  ValueListText: String;
+  NotNullCheking: Boolean;
+begin
+  NotNullCheking := true;
+  FDBFieldControlRegistry.ForwardEnumerator(
+    procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
+    begin
+      if AObject.DBField.IsNotNull then
+        if AObject.Memo.Text.Length = 0 then
+        begin
+          NotNullCheking := false;
+
+          ABreak := true;
+        end;
+    end
+  );
+
+  if not NotNullCheking then
+  begin
+    TDialog.ShowMessage('Fields with the "not null" attribute must be filled in');
+
+    Exit;
+  end;
+
+  CollectFieldList(FieldListText, ValueListText, true);
+  if InsertIntoTable(Caption, FieldListText, ValueListText) then
+  begin
+    RefreshContent(Caption);
+
+    DataStringGrid.Row := FCurrentRowIndex;
+    FillDBFieldControls(FCurrentRowIndex);
+
+    CancelSpeedButtonClick(nil);
+  end;
+end;
+
 procedure TDataForm.RefreshSpeedButtonClick(Sender: TObject);
 begin
   RefreshContent(Caption);
@@ -286,7 +346,7 @@ begin
     end;
   finally
     FDBFieldControlRegistry.ForwardEnumerator(
-      procedure (const AObject: TDBFieldControl)
+      procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
       begin
         AObject.Align := TAlignLayout.Top;
       end
@@ -308,7 +368,7 @@ var
   ParamsIn: TParamsExt;
   IsCanceled: Boolean;
 begin
-  // --- Находим кто смотрит на эту форму ---
+  // --- РќР°С…РѕРґРёРј РєС‚Рѕ СЃРјРѕС‚СЂРёС‚ РЅР° СЌС‚Сѓ С„РѕСЂРјСѓ ---
 
   References := '';
   ForeignKeyTableObjList := TForeignKeyTableObjList.Create;
@@ -338,18 +398,18 @@ begin
   begin
     References :=
       Concat(
-        'Внимание!', #10, #10,
-        'На эту таблицу есть ссылки с каскадным удалением:', #10,
+        'Р’РЅРёРјР°РЅРёРµ!', #10, #10,
+        'РќР° СЌС‚Сѓ С‚Р°Р±Р»РёС†Сѓ РµСЃС‚СЊ СЃСЃС‹Р»РєРё СЃ РєР°СЃРєР°РґРЅС‹Рј СѓРґР°Р»РµРЅРёРµРј:', #10,
         References, #10,
-        'Связанные записи так же бьудут удалены', #10,
-        'Породолжить?');
+        'РЎРІСЏР·Р°РЅРЅС‹Рµ Р·Р°РїРёСЃРё С‚Р°Рє Р¶Рµ Р±СЊСѓРґСѓС‚ СѓРґР°Р»РµРЅС‹', #10,
+        'РџРѕСЂРѕРґРѕР»Р¶РёС‚СЊ?');
 
     TDialog.Confirm(References,
       procedure(Confirmed: Boolean)
       begin
         if not Confirmed then
         begin
-          TDialog.ShowMessage('Отмена.');
+          TDialog.ShowMessage('РћС‚РјРµРЅР°.');
 
           IsCanceled := true
         end;
@@ -379,26 +439,32 @@ begin
   FillDBFieldControls(FCurrentRowIndex);
 end;
 
-procedure TDataForm.InsertIntoTable(
+function TDataForm.InsertIntoTable(
   const ATableName: String;
   const AFieldList: String;
-  const AValueList: String);
+  const AValueList: String): Boolean;
 var
   ParamsIn: TParamsExt;
 begin
+  Result := false;
+
   ParamsIn := TParamsExt.Create;
   try
     ParamsIn.Add(ATableName, 'table_name');
     ParamsIn.Add(AFieldList, 'filed_list');
     ParamsIn.Add(AValueList, 'value_list');
-
     try
       TDBAccess.DBAParamsFunc(TDBAccess.InsertIntoTable, ParamsIn, nil);
+
+      Result := true;
     except
       on e: TDBExceptionContainer do
       begin
         if e.Kind.ToString = 'ekUKViolated' then
-          ShowMessage(Concat('Violation of uniqueness', ' -> ', e.Message));
+          ShowMessage(Concat('Violation of uniqueness', ' -> ', e.Message))
+        else
+        if e.Kind.ToString = 'ekFKViolated' then
+          ShowMessage(Concat('Violation of foreign key', ' -> ', e.Message));
       end;
     end;
   finally
@@ -442,7 +508,7 @@ begin
   ValueList := TStringList.Create;
   try
     FDBFieldControlRegistry.ForwardEnumerator(
-      procedure (const AObject: TDBFieldControl)
+      procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
       var
         DBField: TDBField;
       begin
@@ -523,7 +589,7 @@ begin
   Result := '';
 
   FDBFieldControlRegistry.ForwardEnumerator(
-    procedure (const AObject: TDBFieldControl)
+    procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
     var
       DBField: TDBField;
       MemoText: String;
@@ -543,6 +609,65 @@ begin
   );
 
   Result := PrimaryKeys;
+end;
+
+function TDataForm.CheckFields: Boolean;
+var
+  IsNotNull: Boolean;
+  IsForeignKey: Boolean;
+  NotNullWarning: String;
+  NullFields: String;
+  ForeignKeysWarning: String;
+  EmptyForeignKeys: String;
+begin
+  Result := false;
+
+  NullFields := '';
+  NotNullWarning :=
+    'Fields marked with the NOT NULL attribute cannot be empty';
+
+  EmptyForeignKeys := '';
+  ForeignKeysWarning :=
+    'The fields are foreign keys and must be populated' + #10 +
+    'Otherwise, the relationship between the tables for this record will be broken';
+
+  FDBFieldControlRegistry.ForwardEnumerator(
+    procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
+    var
+      DBField: TDBField;
+    begin
+      DBField := AObject.DBField;
+
+      IsNotNull := DBField.IsNotNull;
+      IsForeignKey := DBField.IsForeignKey;
+      if IsNotNull then
+        if AObject.Memo.Text.IsEmpty then
+        begin
+          NullFields := NullFields + #10 + DBField.FieldName;
+        end;
+      if IsForeignKey then
+        if AObject.Memo.Text.IsEmpty then
+        begin
+          EmptyForeignKeys := EmptyForeignKeys + #10 + DBField.FieldName;
+        end;
+    end
+  );
+
+  if not NullFields.IsEmpty then
+  begin
+    ShowMessage(NotNullWarning + #10 + NullFields);
+
+    Exit;
+  end;
+
+  if not EmptyForeignKeys.IsEmpty then
+  begin
+    ShowMessage(ForeignKeysWarning + #10 + EmptyForeignKeys);
+
+    Exit;
+  end;
+
+  Result := true;
 end;
 
 function TDataForm.FormatDBFieldString(
@@ -573,14 +698,17 @@ begin
   FillDBFieldControls(FCurrentRowIndex);
 end;
 
-procedure TDataForm.AddSpeedButtonClick(Sender: TObject);
-var
-  FieldListText: String;
-  ValueListText: String;
+procedure TDataForm.AcceptSpeedButtonClick(Sender: TObject);
 begin
-  // Установим дефолтные значения по паттерну
+  if Assigned(FAcceptedProc) then
+    FAcceptedProc;
+end;
+
+procedure TDataForm.AddSpeedButtonClick(Sender: TObject);
+begin
+  // РЈСЃС‚Р°РЅРѕРІРёРј РґРµС„РѕР»С‚РЅС‹Рµ Р·РЅР°С‡РµРЅРёСЏ РїРѕ РїР°С‚С‚РµСЂРЅСѓ
   FDBFieldControlRegistry.ForwardEnumerator(
-    procedure (const AObject: TDBFieldControl)
+    procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
     var
       DBField: TDBField;
     begin
@@ -589,23 +717,13 @@ begin
     end
   );
 
-  CollectFieldList(FieldListText, ValueListText, true);
-  InsertIntoTable(Caption, FieldListText, ValueListText);
+  FAcceptedProc := DoInsert;
 
-  RefreshContent(Caption);
-
-  DataStringGrid.Row := FCurrentRowIndex;
-  FillDBFieldControls(FCurrentRowIndex);
+  AcceptLayout.Visible := true;
 end;
 
 procedure TDataForm.UpdateSpeedButtonClick(Sender: TObject);
 var
-  IsNotNull: Boolean;
-  IsForeignKey: Boolean;
-  NotNullWarning: String;
-  NullFields: String;
-  ForeignKeysWarning: String;
-  EmptyForeignKeys: String;
   FieldList: TStringList;
   FieldString: String;
   MemoText: String;
@@ -614,82 +732,52 @@ var
   IdFieldText: String;
   ParamsIn: TParamsExt;
 begin
-  NullFields := '';
-  NotNullWarning :=
-    'Fields marked with the NOT NULL attribute cannot be empty';
-
-  EmptyForeignKeys := '';
-  ForeignKeysWarning :=
-    'The fields are foreign keys and must be populated' + #10 +
-    'Otherwise, the relationship between the tables for this record will be broken';
-
+  if not CheckFields then
+    Exit;
 
   IdFieldText := CollectPrimaryKeys;
 
   FieldList := TStringList.Create;
   try
-    FDBFieldControlRegistry.ForwardEnumerator(
-      procedure (const AObject: TDBFieldControl)
-      var
-        DBField: TDBField;
-      begin
-        DBField := AObject.DBField;
-        MemoText := AObject.Memo.Text;
-
-        FieldString := FormatDBFieldString(DBField, MemoText, ', ');
-        FieldList.Add(FieldString);
-
-        IsNotNull := DBField.IsForeignKey;
-        IsForeignKey := DBField.IsForeignKey;
-        if IsNotNull then
-          if AObject.Memo.Text.IsEmpty then
-          begin
-            NullFields := NullFields + #10 + DBField.FieldName;
-          end;
-        if IsForeignKey then
-          if AObject.Memo.Text.IsEmpty then
-          begin
-            EmptyForeignKeys := EmptyForeignKeys + #10 + DBField.FieldName;
-          end;
-      end
-    );
-
-    if not NullFields.IsEmpty then
-    begin
-      ShowMessage(NotNullWarning + #10 + NullFields);
-
-      Exit;
-    end;
-
-    if not EmptyForeignKeys.IsEmpty then
-    begin
-      ShowMessage(ForeignKeysWarning + #10 + EmptyForeignKeys);
-
-      Exit;
-    end;
-
-    FieldListText := Trim(FieldList.Text);
-    FieldListText := Copy(FieldListText, 1, Length(FieldListText) - 1);
-
-    WhereSection := Format('%s', [IdFieldText]);
-
-    ParamsIn := TParamsExt.Create;
     try
-      ParamsIn.Add(Caption, 'table_name');
-      ParamsIn.Add(FieldListText, 'filed_list');
-      ParamsIn.Add(WhereSection, 'where_section');
-
-      try
-        TDBAccess.DBAParamsFunc(TDBAccess.UpdateTable, ParamsIn, nil);
-      except
-        on e: TDBExceptionContainer do
+      FDBFieldControlRegistry.ForwardEnumerator(
+        procedure (const AObject: TDBFieldControl; var ABreak: Boolean)
+        var
+          DBField: TDBField;
         begin
-          if e.Kind.ToString = 'ekUKViolated' then
-            ShowMessage(Concat('Violation of uniqueness', ' -> ', e.Message));
+          DBField := AObject.DBField;
+          MemoText := AObject.Memo.Text;
+
+          FieldString := FormatDBFieldString(DBField, MemoText, ', ');
+          FieldList.Add(FieldString);
+        end
+      );
+
+      FieldListText := Trim(FieldList.Text);
+      FieldListText := Copy(FieldListText, 1, Length(FieldListText) - 1);
+
+      WhereSection := Format('%s', [IdFieldText]);
+
+      ParamsIn := TParamsExt.Create;
+      try
+        ParamsIn.Add(Caption, 'table_name');
+        ParamsIn.Add(FieldListText, 'filed_list');
+        ParamsIn.Add(WhereSection, 'where_section');
+
+        try
+          TDBAccess.DBAParamsFunc(TDBAccess.UpdateTable, ParamsIn, nil);
+        except
+          on e: TDBExceptionContainer do
+          begin
+            if e.Kind.ToString = 'ekUKViolated' then
+              ShowMessage(Concat('Violation of uniqueness', ' -> ', e.Message));
+          end;
         end;
+      finally
+        FreeAndNil(ParamsIn);
       end;
     finally
-      FreeAndNil(ParamsIn);
+      FreeAndNil(FieldList);
     end;
   finally
     FreeAndNil(FieldList);
@@ -721,7 +809,7 @@ begin
 
   FillDBFieldControls(FCurrentRowIndex);
 
-  // --- Находим кто смотрит на эту форму ---
+  // --- РќР°С…РѕРґРёРј РєС‚Рѕ СЃРјРѕС‚СЂРёС‚ РЅР° СЌС‚Сѓ С„РѕСЂРјСѓ ---
 
   ForeignKeyTableObjList := TForeignKeyTableObjList.Create;
   try
@@ -751,7 +839,7 @@ begin
     FreeAndNil(ForeignKeyTableObjList);
   end;
 
-  // --- Находим на кого смотрит эта форма ---
+  // --- РќР°С…РѕРґРёРј РЅР° РєРѕРіРѕ СЃРјРѕС‚СЂРёС‚ СЌС‚Р° С„РѕСЂРјР° ---
 
   ForeignKeyTableObjList := TForeignKeyTableObjList.Create;
   try
@@ -759,7 +847,7 @@ begin
     begin
       if DBField.IsForeignKey then
       begin
-        // Собираем таблицы с внешними ключами
+        // РЎРѕР±РёСЂР°РµРј С‚Р°Р±Р»РёС†С‹ СЃ РІРЅРµС€РЅРёРјРё РєР»СЋС‡Р°РјРё
         ForeignKeyTableObj :=
           ForeignKeyTableObjList.ForeignKeyTableObj[DBField.TableReference];
         if not Assigned(ForeignKeyTableObj) then
@@ -808,12 +896,26 @@ begin
   Action := TCloseAction.caFree;
 end;
 
+constructor TDataForm.Create(AOwner: TComponent; AName: String);
+begin
+  inherited Create(AOwner);
+
+  FDBFieldControlRegistry := nil;
+  FDBRowList := nil;
+  FCurrentRowIndex := -1;
+  FAcceptedProc := nil;
+
+  Name := AName;
+end;
+
 procedure TDataForm.FormCreate(Sender: TObject);
 begin
   TLayoutHelper.LoadFormLayout(Self);
 
   FDBRowList := TDBRowList.Create;
   FDBFieldControlRegistry := TDBFieldControlRegistry.Create;
+
+  AcceptLayout.Visible := false;
 end;
 
 procedure TDataForm.FormDestroy(Sender: TObject);
