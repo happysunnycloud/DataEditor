@@ -17,7 +17,10 @@ uses
   DBRowUnit in 'DBRowUnit.pas',
   DataConnectorUnit in 'DataConnectorUnit.pas',
   FMX.DialogUnit in 'FMX.DialogUnit.pas',
-  FMX.FormLayoutXMLUnit in 'FMX.FormLayoutXMLUnit.pas';
+  FMX.FormLayoutXMLUnit in 'FMX.FormLayoutXMLUnit.pas',
+  ConfigUnit in 'ConfigUnit.pas',
+  CommonUnit in 'CommonUnit.pas',
+  StringToolsUnit in '..\DevelopmentsCollection\StringToolsUnit.pas';
 
 {$R *.res}
 

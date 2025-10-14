@@ -209,7 +209,6 @@ class function TDBAccess.GetTableList(
     for DBField in ADBRow do
       Result := Concat(Result, DBField.FieldName, ', ', #10);
 
-
     Result := Result.Remove(Result.Length - 3);
   end;
 

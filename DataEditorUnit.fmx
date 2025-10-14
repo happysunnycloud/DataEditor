@@ -12,12 +12,87 @@ object MainForm: TMainForm
   OnDestroy = FormDestroy
   DesignerMasterStyle = 0
   object TablesScrollBox: TScrollBox
-    Align = Contents
+    Align = Client
     Size.Width = 462.000000000000000000
-    Size.Height = 426.000000000000000000
+    Size.Height = 346.000000000000000000
     Size.PlatformDefault = False
     TabOrder = 0
     Viewport.Width = 462.000000000000000000
-    Viewport.Height = 426.000000000000000000
+    Viewport.Height = 346.000000000000000000
+  end
+  object NavigatorLayout: TLayout
+    Align = Bottom
+    Position.Y = 376.000000000000000000
+    Size.Width = 462.000000000000000000
+    Size.Height = 50.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 1
+    object OpedSpeedButton: TSpeedButton
+      Align = Left
+      Size.Width = 50.000000000000000000
+      Size.Height = 50.000000000000000000
+      Size.PlatformDefault = False
+      OnClick = OpedSpeedButtonClick
+      object OpedSpeedButtonImage: TImage
+        MultiResBitmap.Height = 48
+        MultiResBitmap.Width = 48
+        MultiResBitmap = <
+          item
+            Width = 48
+            Height = 48
+            PNG = {
+              89504E470D0A1A0A0000000D49484452000000300000003008060000005702F9
+              87000000017352474200AECE1CE90000000467414D410000B18F0BFC61050000
+              0148494441546843EDD83F4A03411886F167BEDD40CC1F151112248D78008B14
+              39420A2FA1C748A59E2047504827828D8DE8256C44C45E10144C21117667ECBF
+              51A28299857CBFF29D661E986D168C31C62C33A707003FA1170AC63886026D7D
+              FEA5C0B13BE048CFFF2D0AF0137AA1E45660439FCD952042F4100AC67FBA3C80
+              E3309C240EC031D4D3AF2C38227A42E194409E43B703AD2648DCB848BEF0818F
+              D9937B9FEDCBDEF3B53E8F6F97E7B0B30DABEDE49707905C9C341B5B617DED2A
+              5C6EF6A3733DD0ED4096E93539A965CEAF342EA25D0FB49A7AA98E7ABDA7A738
+              A002CFE63B5293E89BADEE6D7FC80252B380D42C20350B48CD0252B380D42C20
+              350B48CD02528B023C4CF55619256F7A8A02F0FE464F55E185F93FB69C9391A7
+              7CD17B6A9EF2D5E532D27B142083FB0757B0EBE1AC0ACFC9C3D407CE5D561B48
+              FFEE519F1B638C596E9F472A47B5EA50298D0000000049454E44AE426082}
+            FileName = 'C:\Desktop\DataEditor\Icons\folder.png'
+          end>
+        Align = Contents
+        HitTest = False
+        Margins.Left = 5.000000000000000000
+        Margins.Top = 5.000000000000000000
+        Margins.Right = 5.000000000000000000
+        Margins.Bottom = 5.000000000000000000
+        Size.Width = 40.000000000000000000
+        Size.Height = 40.000000000000000000
+        Size.PlatformDefault = False
+      end
+    end
+  end
+  object OpenDialog: TOpenDialog
+    Left = 422
+    Top = 8
+  end
+  object HearedLayout: TLayout
+    Align = Top
+    Size.Width = 462.000000000000000000
+    Size.Height = 30.000000000000000000
+    Size.PlatformDefault = False
+    TabOrder = 3
+    object DBPathLabel: TLabel
+      Align = Left
+      StyledSettings = [Family, Size, FontColor]
+      Margins.Left = 5.000000000000000000
+      Margins.Top = 5.000000000000000000
+      Margins.Right = 5.000000000000000000
+      Margins.Bottom = 5.000000000000000000
+      Position.X = 5.000000000000000000
+      Position.Y = 5.000000000000000000
+      Size.Width = 452.000000000000000000
+      Size.Height = 20.000000000000000000
+      Size.PlatformDefault = False
+      TextSettings.Font.StyleExt = {00070000000000000004000000}
+      Text = 'DBPathLabel'
+      TabOrder = 0
+    end
   end
 end

@@ -79,6 +79,8 @@ type
       const ASplitter: String): String;
 
     function CheckFields: Boolean;
+
+    function DecDataStringGridRowIndex: Integer;
   public
     { Public declarations }
     constructor Create(AOwner: TComponent; AName: String); reintroduce;
@@ -104,6 +106,7 @@ uses
   , DBExceptionContainerUnit
   , FMX.DialogUnit
   , FMX.FormLayoutXMLUnit
+  , CommonUnit
   , DebugUnit
   ;
 
@@ -142,28 +145,33 @@ begin
 end;
 
 procedure TDataForm.ClearContent;
-var
-  i: Integer;
-  Control: TControl;
+//var
+//  i: Integer;
+//  Control: TControl;
 begin
-  DBFieldsScrollBox.BeginUpdate;
-  DBFieldsScrollBox.ShowScrollBars := false;
-  try
-    i := DBFieldsScrollBox.Content.ControlsCount;
-    while i > 0 do
-    begin
-      Dec(i);
-
-      Control := DBFieldsScrollBox.Content.Controls[i];
-      FreeAndNil(Control);
-    end;
-
-    DBFieldsScrollBox.Content.Controls.Clear;
-  finally
-    DBFieldsScrollBox.EndUpdate;
-    DBFieldsScrollBox.RecalcSize;
-    DBFieldsScrollBox.ShowScrollBars := true;
-  end;
+  ClearScrollBoxContent(DBFieldsScrollBox);
+//  DBFieldsScrollBox.BeginUpdate;
+//  DBFieldsScrollBox.ShowScrollBars := false;
+//  try
+//    i := DBFieldsScrollBox.Content.ControlsCount;
+//    while i > 0 do
+//    begin
+//      Dec(i);
+//
+//      Control := DBFieldsScrollBox.Content.Controls[i];
+//
+//      if Control is TMemo then
+//        TMemo(Control).ShowScrollBars := false;
+//
+//      FreeAndNil(Control);
+//    end;
+//
+//    DBFieldsScrollBox.Content.Controls.Clear;
+//  finally
+//    DBFieldsScrollBox.EndUpdate;
+//    DBFieldsScrollBox.RecalcSize;
+//    DBFieldsScrollBox.ShowScrollBars := true;
+//  end;
 end;
 
 procedure TDataForm.RefreshContent(
@@ -237,6 +245,12 @@ var
   DBField: TDBField;
   DBFieldControl: TDBFieldControl;
 begin
+  if FDBRowList.Count = 0 then
+    Exit;
+
+  if (ARowIndex < 0) or (ARowIndex > FDBRowList.Count - 1) then
+    Exit;
+
   DBRow := FDBRowList[ARowIndex];
 
   for DBField in DBRow do
@@ -367,6 +381,7 @@ var
   WhereSection: String;
   ParamsIn: TParamsExt;
   IsCanceled: Boolean;
+  HasCascadDelete: Boolean;
 begin
   // --- Находим кто смотрит на эту форму ---
 
@@ -375,18 +390,20 @@ begin
   try
     TDataConnector.GetForeignKeys(Caption, ForeignKeyTableObjList);
 
+    HasCascadDelete := false;
     for ForeignKeyTableObj in ForeignKeyTableObjList do
     begin
       for ForeignKey in ForeignKeyTableObj.ForeignKeyObjList do
       begin
         if ForeignKey.HasDeleteCascade then
-          References :=
-            Concat(
-              References,
-              ForeignKeyTableObj.TableName,
-              '.',
-              ForeignKey.FieldReference,
-              #10);
+          HasCascadDelete := true;
+        References :=
+          Concat(
+            References,
+            ForeignKeyTableObj.TableName,
+            '.',
+            ForeignKey.FieldReference,
+            #10);
       end;
     end;
   finally
@@ -396,24 +413,35 @@ begin
   IsCanceled := false;
   if References.Length > 0 then
   begin
-    References :=
-      Concat(
-        'Внимание!', #10, #10,
-        'На эту таблицу есть ссылки с каскадным удалением:', #10,
-        References, #10,
-        'Связанные записи так же бьудут удалены', #10,
-        'Породолжить?');
+    if HasCascadDelete then
+    begin
+      References :=
+        Concat(
+          'Please note!', #10, #10,
+          'This table has child records:', #10,
+          References, #10,
+          'Cascade delete will be applied');
 
-    TDialog.Confirm(References,
-      procedure(Confirmed: Boolean)
-      begin
-        if not Confirmed then
+      TDialog.Confirm(References,
+        procedure(Confirmed: Boolean)
         begin
-          TDialog.ShowMessage('Отмена.');
+          if not Confirmed then
+          begin
+            IsCanceled := true
+          end;
+        end);
+    end
+    else
+    begin
+      References :=
+        Concat(
+          'Please note!', #10, #10,
+          'This table has child records:', #10,
+          References, #10,
+          'Please delete the child records first and then repeat the action.');
 
-          IsCanceled := true
-        end;
-      end);
+      TDialog.ShowMessage(References);
+    end;
   end;
 
   if IsCanceled then
@@ -427,15 +455,25 @@ begin
     ParamsIn.Add(Caption, 'table_name');
     ParamsIn.Add(WhereSection, 'where_section');
 
-    TDBAccess.DBAParamsFunc(TDBAccess.DeleteFromTable, ParamsIn, nil);
+    try
+      TDBAccess.DBAParamsFunc(TDBAccess.DeleteFromTable, ParamsIn, nil);
+    except
+      on e: TDBExceptionContainer do
+      begin
+//        if e.Kind.ToString = 'ekUKViolated' then
+//          ShowMessage(Concat('Violation of uniqueness', ' -> ', e.Message))
+//        else
+        if e.Kind.ToString = 'ekFKViolated' then
+          ShowMessage(Concat('Violation of foreign key', ' -> ', e.Message));
+      end;
+    end;
   finally
     FreeAndNil(ParamsIn);
   end;
 
   RefreshContent(Caption);
 
-  Dec(FCurrentRowIndex);
-  DataStringGrid.Row := FCurrentRowIndex;
+  DataStringGrid.Row := DecDataStringGridRowIndex;
   FillDBFieldControls(FCurrentRowIndex);
 end;
 
@@ -514,9 +552,7 @@ begin
       begin
         DBField := AObject.DBField;
         MemoText := AObject.Memo.Text;
-        if DBField.IsAutoIncrement or
-           DBField.IsUnique
-        then
+        if DBField.IsAutoIncrement then
         begin
           Exit;
         end
@@ -668,6 +704,15 @@ begin
   end;
 
   Result := true;
+end;
+
+function TDataForm.DecDataStringGridRowIndex: Integer;
+begin
+  if DataStringGrid.RowCount = 0 then
+    FCurrentRowIndex := -1
+  else
+    Dec(FCurrentRowIndex);
+  Result := FCurrentRowIndex;
 end;
 
 function TDataForm.FormatDBFieldString(
@@ -861,11 +906,9 @@ begin
       end;
     end;
 
-    DDLMemo.Text := '';
     for ForeignKeyTableObj in ForeignKeyTableObjList do
     begin
       WhereSection := 'where ';
-      DDLMemo.Lines.Add(ForeignKeyTableObj.TableName);
 
       for ForeignKey in ForeignKeyTableObj.ForeignKeyObjList do
       begin
@@ -880,8 +923,6 @@ begin
 
       WhereSection := Trim(WhereSection);
       WhereSection := Copy(WhereSection, 1, Length(WhereSection) - Length('and'));
-
-      DDLMemo.Lines.Add(WhereSection);
 
       TableName := ForeignKeyTableObj.TableName;
       FindDataForm(TableName).RefreshContent(TableName, WhereSection);

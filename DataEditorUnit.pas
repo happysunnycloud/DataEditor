@@ -6,21 +6,29 @@ uses
   System.SysUtils, System.Types, System.UITypes, System.Classes, System.Variants,
   FMX.Types, FMX.Controls, FMX.Forms, FMX.Graphics, FMX.Dialogs,
   FMX.Controls.Presentation, FMX.StdCtrls
-  , DataFormUnit, FMX.Layouts
+  , DataFormUnit, FMX.Layouts, FMX.Objects
   ;
 
 const
 //  DB_PATH = '..\..\DataBase\Purgaroty.db';
 //  DB_PATH = 'C:\Desktop\TelegramBots\theme-tg-bot-content\content.sqlite';
-  DB_PATH = 'DataBase\content.sqlite';
+//  DB_PATH = 'DataBase\content.sqlite';
   SQL_TEMPLATES_PATH = '..\..\SQLTemplates\';
+  CONFIG_FILE_DIR = 'Config';
 
 type
   TMainForm = class(TForm)
     TablesScrollBox: TScrollBox;
+    NavigatorLayout: TLayout;
+    OpedSpeedButton: TSpeedButton;
+    OpenDialog: TOpenDialog;
+    OpedSpeedButtonImage: TImage;
+    HearedLayout: TLayout;
+    DBPathLabel: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure FormClose(Sender: TObject; var Action: TCloseAction);
     procedure FormDestroy(Sender: TObject);
+    procedure OpedSpeedButtonClick(Sender: TObject);
   private
     { Private declarations }
     DataForm: TDataForm;
@@ -28,6 +36,7 @@ type
     function FindDataForm(const ATableName: String): TDataForm;
     procedure TableNameButtonClick(Sender: TObject);
     procedure GetTableList;
+    procedure ReloadDB(const ADBPath: String);
   public
     { Public declarations }
   end;
@@ -41,8 +50,10 @@ implementation
 
 uses
     DBAccessUnit
+  , ConfigUnit
   , ParamsExtUnit
   , FMX.FormLayoutXMLUnit
+  , CommonUnit
   ;
 
 procedure TMainForm.FormClose(Sender: TObject; var Action: TCloseAction);
@@ -62,7 +73,7 @@ begin
     Exit;
   end;
 
-  DataForm := TDataForm.Create(Self, Concat('DataForm_', TableName));
+  DataForm := TDataForm.Create(Sender as TButton, Concat('DataForm_', TableName));
   DataForm.SetTableName(TableName);
   DataForm.Show;
 end;
@@ -144,20 +155,50 @@ begin
   end;
 end;
 
+procedure TMainForm.OpedSpeedButtonClick(Sender: TObject);
+var
+  FileName: String;
+begin
+  OpenDialog.InitialDir := ExtractFileDir(TConfig.DBPath);
+  if OpenDialog.Execute then
+  begin
+    FileName := OpenDialog.FileName;
+    TConfig.DBPath := FileName;
+
+    // Формы уничтожаются, через кнопки создавшие их
+
+    ClearScrollBoxContent(TablesScrollBox);
+
+    ReloadDB(TConfig.DBPath);
+  end;
+end;
+
+procedure TMainForm.ReloadDB(const ADBPath: String);
+var
+  DBXMLFileName: String;
+begin
+  TDBAccess.UnInit;
+  TDBAccess.Init(TConfig.DBPath, SQL_TEMPLATES_PATH);
+
+  DBPathLabel.Text := TConfig.DBPath;
+
+  DBXMLFileName := Concat(CONFIG_FILE_DIR, '\', ExtractFileName(ADBPath), '.xml');
+  TLayoutHelper.Init(DBXMLFileName);
+
+  GetTableList;
+end;
+
 procedure TMainForm.FormCreate(Sender: TObject);
 begin
   ReportMemoryLeaksOnShutdown := true;
 
-  TLayoutHelper.LoadFormLayout(Self);
+  if not DirectoryExists(CONFIG_FILE_DIR) then
+    CreateDir(CONFIG_FILE_DIR);
 
-  TDBAccess.Init(DB_PATH, SQL_TEMPLATES_PATH);
+  TConfig.Init(Self, Concat(CONFIG_FILE_DIR, '\', 'Config.xml'));
+  TConfig.LoadConfig;
 
-  if not DirectoryExists('Config') then
-    CreateDir('Config');
-
-  TLayoutHelper.Init(Concat('Config', '\', ExtractFileName(DB_PATH), '.xml'));
-
-  GetTableList;
+  ReloadDB(TConfig.DBPath);
 end;
 
 procedure TMainForm.FormDestroy(Sender: TObject);
@@ -165,6 +206,8 @@ begin
   TDBAccess.UnInit;
 
   TLayoutHelper.SaveFormLayout(Self);
+
+  TConfig.SaveConfig;
 end;
 
 end.

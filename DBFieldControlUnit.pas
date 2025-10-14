@@ -85,12 +85,12 @@ begin
   FLabel.Width := 200;
   ForeignKey := '';
   if FDBField.IsForeignKey then
-    ForeignKey := Format(' is foreign key ref: %s (%s)',
-      [FDBField.TableReference, FDBField.FieldReference]);
+    ForeignKey := Format(' is %s ref: %s (%s)',
+      [FOREIGN_KEY, FDBField.TableReference, FDBField.FieldReference]);
 
   PrimaryKeyAttribute := '';
   if FDBField.IsPrimaryKey then
-    PrimaryKeyAttribute := ' (primary key)';
+    PrimaryKeyAttribute := Format(' (%s)', [PRIMARY_KEY]);
 
   AutoIncrementAttribute := '';
   if FDBField.IsAutoIncrement then
@@ -121,7 +121,7 @@ begin
   FMemo.Parent := Self;
   FMemo.Align := TAlignLayout.Client;
   FMemo.Lines.Text := '';
-  FMemo.Enabled := not FDBField.IsPrimaryKey and not FDBField.IsAutoIncrement;
+  FMemo.Enabled := not FDBField.IsAutoIncrement;
 
   Width := 200;
   Height := 100;

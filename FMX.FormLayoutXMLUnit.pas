@@ -16,7 +16,7 @@ type
   end;
 
   TLayoutHelper = class
-  private
+  strict private
     class var FFileName: String;
 //    class procedure OnApplicationIdle(Sender: TObject; var Done: Boolean);
     class function GetLayoutFile: string;
@@ -204,7 +204,6 @@ begin
   FormNode.Attributes['Width'] := AForm.Width;
   FormNode.Attributes['Height'] := AForm.Height;
 
-  //
   for I := FormNode.ChildNodes.Count - 1 downto 0 do
     FormNode.ChildNodes.Delete(I);
 

@@ -8,13 +8,15 @@ uses
   ;
 
 const
-  ExcludingDDLString: array[0..4] of string = ('create', 'foreign key', 'references', '(', ')');
-  ExcludingChars: array[0..2] of Char = (',', '(', ')');
-
-const
   NULL_ID = -1;
   FIELD_TYPE_TEXT = 'text';
   FIELD_TYPE_INTEGER = 'integer';
+  PRIMARY_KEY = 'primary key';
+  FOREIGN_KEY = 'foreign key';
+
+  ExcludingDDLString: array[0..3] of string =
+    ('create', PRIMARY_KEY, FOREIGN_KEY, 'references');
+  ExcludingChars: array[0..2] of Char = (',', '(', ')');
 
 type
   TDBField = class
@@ -32,6 +34,7 @@ type
     FHasDeleteCascade: Boolean;
     FTableReference: String;
     FFieldReference: String;
+    FDefault: String;
   public
     constructor Create;
 
@@ -48,6 +51,7 @@ type
     property HasDeleteCascade: Boolean read FHasDeleteCascade write FHasDeleteCascade;
     property TableReference: String read FTableReference write FTableReference;
     property FieldReference: String read FFieldReference write FFieldReference;
+    property Default: String read FDefault write FDefault;
 
     procedure CopyFrom(const ADBField: TDBField);
 
@@ -104,6 +108,7 @@ implementation
 
 uses
     System.SysUtils
+  , StringToolsUnit
   ;
 
 { TDBField }
@@ -159,6 +164,7 @@ begin
   FHasDeleteCascade := ADBField.HasDeleteCascade;
   FTableReference := ADBField.TableReference;
   FFieldReference := ADBField.FieldReference;
+  FDefault := ADBField.Default;
 end;
 
 class function TDBField.ClearString(const ADirtString: String): String;
@@ -176,6 +182,17 @@ end;
 class function TDBField.CreateDBField(
   const ATableName: String;
   const AFieldString: String): TDBField;
+
+  function _ParseDefault(const AParsingString: String): String;
+  var
+    ParsingString: String;
+  begin
+    ParsingString :=
+      StringReplace(AParsingString, 'default', '', [rfReplaceAll, rfIgnoreCase]);
+
+    Result := ParsingString;
+  end;
+
 var
   Splitted: TArray<String>;
   SplittedStrings: TStringList;
@@ -212,10 +229,13 @@ begin
         FieldName,
         FieldType);
 
-    Result.IsPrimaryKey := AFieldString.Contains('primary key');
+    Result.IsPrimaryKey := AFieldString.Contains(PRIMARY_KEY);
     Result.IsAutoIncrement := AFieldString.Contains('autoincrement');
     Result.IsNotNull := AFieldString.Contains('not null');
     Result.IsUnique := AFieldString.Contains('unique');
+
+    if AFieldString.Contains('default') then
+      Result.Default := _ParseDefault(ParsingString);
   finally
     FreeAndNil(SplittedStrings);
   end;
@@ -233,7 +253,7 @@ begin
   DDLString := String.LowerCase(ADDLString);
   for ExcludingString in ExcludingDDLString do
   begin
-    if DDLString.Contains(ExcludingString) then
+    if DDLString.StartsWith(ExcludingString) then
     begin
       Result := true;
 
@@ -242,9 +262,108 @@ begin
   end;
 end;
 
+function SplitDDLString(const ADDLString: String): TArray<String>;
+
+  procedure _ReadToTheComma(
+    const AString: String;
+    out AOutString: String;
+    out AOffsetIndex: Integer);
+  var
+    i: Integer;
+    BrackerCount: Integer;
+    c: Char;
+  begin
+    AOutString := '';
+    AOffsetIndex := 1;
+    BrackerCount := 0;
+    i := 1;
+    while i < Length(AString) do
+    begin
+      c := AString[i];
+      if c = '(' then
+        Inc(BrackerCount);
+      if c = ')' then
+        Dec(BrackerCount);
+
+      if c = ',' then
+        if BrackerCount = 0 then
+          Break;
+
+      AOutString := Concat(AOutString, c);
+      AOffsetIndex := i + 1;
+
+      Inc(i);
+    end;
+  end;
+
+var
+  DDLString: String;
+  Position: Integer;
+  Offset: Integer;
+  SplittedString: String;
+begin
+  SetLength(Result, 0);
+
+  Position := Pos('(', ADDLString);
+  DDLString := ADDLString;
+  DDLString := Copy(DDLString, Position + 1, Length(DDLString));
+
+  while DDLString.Length > 0 do
+  begin
+    _ReadToTheComma(DDLString, SplittedString, Offset);
+
+    SetLength(Result, Length(Result) + 1);
+    Result[Length(Result) - 1] := Trim(SplittedString);
+
+    DDLString := Copy(DDLString, Offset + 1, DDLString.Length);
+  end;
+end;
+
 procedure TDBRow.ParseDDLString(const ADDLString: String);
 type
   TStringArray = TArray<String>;
+
+  function _ParseTableName(const ASource: String): String;
+  var
+    SplittedArray: TArray<String>;
+  begin
+    SplittedArray := ASource.Split([' ']);
+
+    Result := SplittedArray[2];
+  end;
+
+  function _CreateDBField(
+    const ATableName: String;
+    const ADDLString: String): TDBField;
+  begin
+    Result := TDBField.CreateDBField(ATableName, ADDLString);
+    Add(Result);
+  end;
+
+  procedure _ParsePrimaryKeys(
+    const ADDLString: String);
+  var
+    DDLString: String;
+    SplittedArray: TArray<String>;
+    FieldName: String;
+    i: Integer;
+    ClearString: String;
+    PositionFrom: Integer;
+    PositionTo: Integer;
+  begin
+    DDLString := Trim(ADDLString);
+    ClearString := TStringTools.ExtractFromBrackets(DDLString);
+    SplittedArray := ClearString.Split([',']);
+
+    i := 0;
+    while i < Length(SplittedArray) do
+    begin
+      FieldName := Trim(SplittedArray[i]);
+      Self.Field[FieldName].IsPrimaryKey := true;
+
+      Inc(i);
+    end;
+  end;
 
   procedure _ParseReference(
     const AReferenceString: String;
@@ -261,88 +380,77 @@ type
     AFieldReference := FieldReference;
   end;
 
-  function _PareseTableName(const ASource: String): String;
+  procedure _ParseForeignKey(const ADDLString: String);
   var
-    SplittedArray: TArray<String>;
-  begin
-    SplittedArray := ASource.Split([' ']);
-
-    Result := SplittedArray[2];
-  end;
-
-  procedure _CheckCascade(
-    const ASplittedArray: TStringArray;
-    const AIndex: Integer;
-    const AForeignKeyField: TDBField);
-  begin
-    if AIndex < Length(ASplittedArray) then
-    begin
-      if ASplittedArray[AIndex].Contains('on update cascade') then
-        AForeignKeyField.HasUpdateCascade := true
-      else
-      if ASplittedArray[AIndex].Contains('on delete cascade') then
-        AForeignKeyField.HasDeleteCascade := true;
-    end;
-  end;
-
-  function _CreateDBField(
-    const ATableName: String;
-    const ADDLString: String): TDBField;
-  begin
-    Result := TDBField.CreateDBField(ATableName, ADDLString);
-    Add(Result);
-  end;
-
-  function _AddLF(const ADDLString: String): String;
-  var
+    Position: Integer;
     DDLString: String;
-    i: Integer;
-    LF: Char;
+    FieldName: String;
+    ForeignKeyField: TDBField;
+    Reference: String;
+    TableReference: String;
+    FieldReference: String;
   begin
-    Result := '';
+    Position := Pos('(', ADDLString);
+    DDLString := Copy(ADDLString, Position + 1, Length(ADDLString));
 
-    LF := #10;
+    Position := Pos(')', DDLString);
+    FieldName := Trim(Copy(DDLString, 1, Position - 1));
 
-    DDLString := ADDLString;
-    for i := 1 to Length(DDLString) do
-    begin
-      if (DDLString[i] = '(') or
-         (DDLString[i] = ',') or
-         (DDLString[i] = ';')
-      then
-      begin
-        Result := Result + DDLString[i] + LF;
-      end
-      else
-      if (DDLString[i] = ')')
-      then
-      begin
-        Result := Result + LF + DDLString[i];
-      end
-      else
-        Result := Result + DDLString[i];
-    end;
+    ForeignKeyField := Field[FieldName];
+    ForeignKeyField.IsForeignKey := true;
+
+    Reference := Trim(Copy(DDLString, Position + 1, Length(DDLString)));
+    _ParseReference(Reference, TableReference, FieldReference);
+
+    ForeignKeyField.TableReference := TableReference;
+    ForeignKeyField.FieldReference := FieldReference;
+
+    if ADDLString.Contains('on update cascade') then
+      ForeignKeyField.HasUpdateCascade := true;
+    if ADDLString.Contains('on delete cascade') then
+      ForeignKeyField.HasDeleteCascade := true;
   end;
 
-  procedure _ParsePrimaryKeys(
-    const ASplittedArray: TStringArray;
-    const AIndex: Integer);
+  function _AddCommaIfAbsent(
+    const ADDLString: String;
+    const AOffset: Integer): String;
+  var
+    Position: Integer;
+  begin
+    Result := ADDLString;
+    Position := Pos(FOREIGN_KEY, String.LowerCase(Result), AOffset);
+
+    if Position > 0 then
+    begin
+      if ADDLString[Position - 1] <> ',' then
+        Result := Result.Insert(Position - 1, ',');
+
+      Result := _AddCommaIfAbsent(Result, Position + Length(FOREIGN_KEY));
+    end
+    else
+      Exit;
+  end;
+
+  function _ClearSpace(const ADDLString: String): String;
   var
     i: Integer;
-    TrimmedString: String;
-    ClearString: String;
+    IsSpaceFound: Boolean;
+    c: Char;
   begin
-    i := AIndex;
-    while i < Length(ASplittedArray) do
+    IsSpaceFound := false;
+    for i := 1 to Length(ADDLString) do
     begin
-      TrimmedString := Trim(ASplittedArray[i]);
-      if TrimmedString = ')' then
-        Break;
+      c := ADDLString[i];
 
-      ClearString := TDBField.ClearString(TrimmedString);
-      Self.Field[ClearString].IsPrimaryKey := true;
+      if (c = ' ') and IsSpaceFound then
+        Continue;
 
-      Inc(i);
+      if c = ' ' then
+        IsSpaceFound := true
+      else
+        IsSpaceFound := false;
+
+      Result := Concat(Result, c);
     end;
   end;
 
@@ -351,61 +459,34 @@ var
   DDLString: String;
   ParsingString: String;
   TrimedString: String;
-  DoBreak: Boolean;
-  i, j: Integer;
-  ForeignKey: String;
-  TableReference: String;
-  FieldReference: String;
-  Reference: String;
-  ForeignKeyField: TDBField;
+  i: Integer;
   TableName: String;
 begin
   DDLString := ADDLString;
-  SplittedArray := DDLString.Split([#10]);
+  DDLString := _ClearSpace(DDLString);
+  DDLString := StringReplace(DDLString, #10, '', [rfReplaceAll, rfIgnoreCase]);
+  DDLString := StringReplace(DDLString, #13, '', [rfReplaceAll, rfIgnoreCase]);
+  DDLString := StringReplace(DDLString, #9, '', [rfReplaceAll, rfIgnoreCase]);
+  DDLString := StringReplace(DDLString, ', ', ',', [rfReplaceAll, rfIgnoreCase]);
+  DDLString := _AddCommaIfAbsent(DDLString, 1);
 
-  if Length(SplittedArray) = 1 then
-  begin
-    DDLString := _AddLF(SplittedArray[0]);
-    SplittedArray := DDLString.Split([#10]);
-  end;
+  SplittedArray := SplitDDLString(DDLString);
 
-  TableName := _PareseTableName(SplittedArray[0]);
+  TableName := _ParseTableName(DDLString);
 
-  DoBreak := false;
-  for DDLString in SplittedArray do
-  begin
-    ParsingString := String.LowerCase(DDLString);
-    if not ContainsExcludingDDLString(ParsingString) then
-    begin
-      TrimedString := Trim(ParsingString);
-      if TrimedString.Length > 0 then
-      begin
-        _CreateDBField(TableName, TrimedString);
-      end;
-    end
-    else
-    begin
-      // ѕервую строку пропускаем, в ней нет полей
-      // » окончательно выходим из цикла, когда пол€ заканчиваютс€
-      if not DoBreak then
-        DoBreak := true
-      else
-        Break;
-    end;
-  end;
-
-  // ≈сли primary key составной
   i := 0;
   while i < Length(SplittedArray) do
   begin
-    ParsingString := String.LowerCase(SplittedArray[i]);
-    if ParsingString.Contains('primary key (') then
-    begin
-      Inc(i);
+    DDLString := SplittedArray[i];
+    ParsingString := String.LowerCase(DDLString);
 
-      _ParsePrimaryKeys(SplittedArray, i);
-
+    if ContainsExcludingDDLString(ParsingString) then
       Break;
+
+    TrimedString := Trim(ParsingString);
+    if TrimedString.Length > 0 then
+    begin
+      _CreateDBField(TableName, TrimedString);
     end;
 
     Inc(i);
@@ -415,27 +496,18 @@ begin
   while i < Length(SplittedArray) do
   begin
     ParsingString := String.LowerCase(SplittedArray[i]);
-    if ParsingString.Contains('foreign key') then
-    begin
-      Inc(i);
+    if ParsingString.StartsWith(PRIMARY_KEY) then
+      _ParsePrimaryKeys(ParsingString);
 
-      ForeignKey := Trim(SplittedArray[i]);
-      ForeignKeyField := Field[ForeignKey];
-      ForeignKeyField.IsForeignKey := true;
+    Inc(i);
+  end;
 
-      Inc(i, 2);
-
-      Reference := Trim(SplittedArray[i]);
-      _ParseReference(Reference, TableReference, FieldReference);
-
-      ForeignKeyField.TableReference := TableReference;
-      ForeignKeyField.FieldReference := FieldReference;
-
-      j := i + 1;
-      _CheckCascade(SplittedArray, j, ForeignKeyField);
-      j := j + 1;
-      _CheckCascade(SplittedArray, j, ForeignKeyField);
-    end;
+  i := 0;
+  while i < Length(SplittedArray) do
+  begin
+    ParsingString := String.LowerCase(SplittedArray[i]);
+    if ParsingString.Contains(FOREIGN_KEY) then
+      _ParseForeignKey(ParsingString);
 
     Inc(i);
   end;
