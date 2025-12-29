@@ -6,10 +6,8 @@ uses
   DataEditorUnit in 'DataEditorUnit.pas' {MainForm},
   DataFormUnit in 'DataFormUnit.pas' {DataForm},
   DBAccessUnit in 'DBAccessUnit.pas',
-  SQLTemplatesUnit in '..\DevelopmentsCollection\SQL\SQLTemplatesUnit.pas',
   ParamsExtUnit in '..\DevelopmentsCollection\ParamsExtUnit.pas',
   FileToolsUnit in '..\DevelopmentsCollection\FileToolsUnit.pas',
-  DBExceptionContainerUnit in 'DBExceptionContainerUnit.pas',
   DBToolsUnit in '..\DevelopmentsCollection\SQLite\DBToolsUnit.pas',
   DBFieldControlUnit in 'DBFieldControlUnit.pas',
   ObjectRegistryUnit in '..\DevelopmentsCollection\ObjectRegistryUnit.pas',
@@ -20,7 +18,11 @@ uses
   FMX.FormLayoutXMLUnit in 'FMX.FormLayoutXMLUnit.pas',
   ConfigUnit in 'ConfigUnit.pas',
   CommonUnit in 'CommonUnit.pas',
-  StringToolsUnit in '..\DevelopmentsCollection\StringToolsUnit.pas';
+  StringToolsUnit in '..\DevelopmentsCollection\StringToolsUnit.pas',
+  SQLTemplatesUnit in '..\DevelopmentsCollection\SQL\SQLTemplatesUnit.pas',
+  FilePackerUnit in '..\DevelopmentsCollection\FilePacker\FilePackerUnit.pas',
+  TextExtractorUnit in '..\DevelopmentsCollection\FilePacker\TextExtractorUnit.pas',
+  DBExceptionContainerUnit in '..\DevelopmentsCollection\SQL\DBExceptionContainerUnit.pas';
 
 {$R *.res}
 

@@ -18,12 +18,6 @@ type
   TDBAResultCode = (rcFault = -1, rcOk = 0, rcFolderIsNotEmpty = 1); //DBA = D - data, B - base,  A - access
   TInOutParamsFuncRef = function(const AInParams: TParamsExt; const AOutParams: TParamsExt): TDBAResultCode of object;
 
-  TCellType = class
-  const
-    ctFolder = 1;
-    ctCell = 2;
-  end;
-
   TDBAccessClass = class
   strict private
     class var FCriticalSection: TCriticalSection;
@@ -42,13 +36,6 @@ type
     class procedure UnInit;
   end;
 
-  TSQLiteHelpmate = class
-  public
-    class function StrToDateTime(const AStr: String): TDateTime;
-    class function DateTimeToStr(const ADateTime: TDateTime): String;
-    class function IntToBool(const AValue: Integer): Boolean;
-  end;
-
 implementation
 
 uses
@@ -58,54 +45,6 @@ uses
   , FireDAC.Phys.SQLiteWrapper
   , DBExceptionContainerUnit
   ;
-
-
-class function TSQLiteHelpmate.StrToDateTime(const AStr: String): TDateTime;
-var
-  FormatSettings: TFormatSettings;
-begin
-  FormatSettings := TFormatSettings.Create;
-  FormatSettings.DateSeparator := '-';
-  FormatSettings.TimeSeparator := ':';
-  FormatSettings.ShortDateFormat := 'YYYY-MM-DD';
-  FormatSettings.ShortTimeFormat := 'HH:MM:SS';
-
-  Result := System.SysUtils.StrToDateTime(AStr, FormatSettings);
-end;
-
-class function TSQLiteHelpmate.DateTimeToStr(const ADateTime: TDateTime): String;
-  function _DigitAlign(const ADigit: Word): String;
-  begin
-    Result := ADigit.ToString;
-    if Result.Length < 2 then
-      Result := '0' + Result;
-  end;
-var
-  //FormatSettings: TFormatSettings;
-  Year, Month, Day: Word;
-  Hour, Min, Sec, MSec: Word;
-begin
-  DecodeDate(ADateTime, Year, Month, Day);
-  DecodeTime(ADateTime, Hour, Min, Sec, MSec);
-
-  Result := Format('%s-%s-%s %s:%s:%s',
-    [
-      _DigitAlign(Year),
-      _DigitAlign(Month),
-      _DigitAlign(Day),
-      _DigitAlign(Hour),
-      _DigitAlign(Min),
-      _DigitAlign(Sec)
-      ])
-end;
-
-class function TSQLiteHelpmate.IntToBool(const AValue: Integer): Boolean;
-begin
-  Result := false;
-
-  if AValue > 0 then
-    Result := true;
-end;
 
 class function TDBAccessClass.DBAParamsFunc(
   const AParamsFuncRef: TInOutParamsFuncRef;
