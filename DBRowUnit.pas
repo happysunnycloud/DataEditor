@@ -348,8 +348,8 @@ type
     FieldName: String;
     i: Integer;
     ClearString: String;
-    PositionFrom: Integer;
-    PositionTo: Integer;
+    //PositionFrom: Integer;
+    //PositionTo: Integer;
   begin
     DDLString := Trim(ADDLString);
     ClearString := TStringTools.ExtractFromBrackets(DDLString);
