@@ -7,7 +7,6 @@ uses
   DataFormUnit in 'DataFormUnit.pas' {DataForm},
   DBAccessUnit in 'DBAccessUnit.pas',
   ParamsExtUnit in '..\DevelopmentsCollection\ParamsExt\ParamsExtUnit.pas',
-  ParamsExtFileUnit in '..\DevelopmentsCollection\ParamsExt\ParamsExtFileUnit.pas',
   FileToolsUnit in '..\DevelopmentsCollection\FileToolsUnit.pas',
   DBToolsUnit in '..\DevelopmentsCollection\SQLite\DBToolsUnit.pas',
   DBFieldControlUnit in 'DBFieldControlUnit.pas',
@@ -23,7 +22,9 @@ uses
   SQLTemplatesUnit in '..\DevelopmentsCollection\SQL\SQLTemplatesUnit.pas',
   FilePackerUnit in '..\DevelopmentsCollection\FilePacker\FilePackerUnit.pas',
   TextExtractorUnit in '..\DevelopmentsCollection\FilePacker\TextExtractorUnit.pas',
-  DBExceptionContainerUnit in '..\DevelopmentsCollection\SQL\DBExceptionContainerUnit.pas';
+  DBExceptionContainerUnit in '..\DevelopmentsCollection\SQL\DBExceptionContainerUnit.pas',
+  BinFileTypes in '..\DevelopmentsCollection\Types\BinFileTypes.pas',
+  StreamHandler in '..\DevelopmentsCollection\Stream\StreamHandler.pas';
 
 {$R *.res}
 
