@@ -1,1 +1,1 @@
-Init
+Lightweight data editor for SQLite
